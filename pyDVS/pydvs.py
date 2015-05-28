@@ -16,6 +16,9 @@ except ImportError:
 
 class CamDVS():
   
+  __CV_CAP_HEIGHT_ID = 4
+  __CV_CAP_WIDTH_ID  = 3
+  
   def __init__(self, video_capture_id):
     self.current_frame  = None
     self.previous_frame = None
@@ -38,6 +41,7 @@ class CamDVS():
     
     assert self.frame_width > 0,  "Frame width <= 0"
     assert self.frame_height > 0, "Frame height <= 0"
+    
 
   def __del__(self):
     self.capture_device.release()
@@ -53,11 +57,11 @@ class CamDVS():
   
   
   def emit(self):
-
+    '''Should be implemented on a per-use-case basis'''
+    raise NotImplementedError
 
 
   def run(self):
+    self.update()
+    self.emit()
 
-
-  __CV_CAP_HEIGHT_ID = 4
-  __CV_CAP_WIDTH_ID  = 3
