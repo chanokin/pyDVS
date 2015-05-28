@@ -6,7 +6,8 @@ class NumpyDVS():
     pass
   
   def process_frame(self, current_frame, previous_frame):
-    ii8 = numpy.iinfo(numpy.int8) 
     diff = current_frame.astype(numpy.int16) - previous_frame.astype(numpy.int16)
+    pos = diff*(diff > 0)
+    neg = numpy.abs(diff)*(diff < 0)
     
-    return numpy.clip(diff, ii8.min, ii8.max).astype(numpy.int8)
+    return pos, neg

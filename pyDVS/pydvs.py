@@ -22,7 +22,8 @@ class CamDVS():
   def __init__(self, video_capture_id):
     self.current_frame  = None
     self.previous_frame = None
-    self.output_frame   = None
+    self.output_frame_pos = None
+    self.output_frame_neg = None
     self.frame_width    = 0
     self.frame_height   = 0
     self.capture_device = cv2.VideoCapture(video_capture_id)
@@ -52,9 +53,10 @@ class CamDVS():
     ret, frame = cap.read()
     self.previous_frame = self.current_frame.copy()
     self.current_frame  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    self.output_frame   = self.processor.process_frame(self.current_frame, \
-                                                       self.previous_frame)
-  
+    pos, neg   = self.processor.process_frame(self.current_frame, \
+                                              self.previous_frame)
+    self.output_frame_pos = pos
+    self.output_frame_neg = neg
   
   def emit(self):
     '''Should be implemented on a per-use-case basis'''
