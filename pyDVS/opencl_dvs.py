@@ -1,19 +1,25 @@
 import pyopencl as cl
 import pyopencl.array as cl_array
-
+from pyopencl.algorithm import RadixSort
+import numpy
+import sys
+import os
+os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 
     
 class OpenCL_DVS():
   
-  def __init__(self, image_width, image_height):
-
+  def __init__(self, image_width, image_height, threshold, cache_dir="./ocl_kernel_cache"):
+    self.cache_dir = cache_dir
     self.image_width  = image_width
     self.image_height = image_height
-      
+    self.threshold = threshold
+    
     self.workgroup_shape = (8, 8)
-    self.global_work_shape = (RoundUp(workgroup_shape[0], image_height),
-                              RoundUp(workgroup_shape[1], image_width))
-    self.array_size = image_width*image_height
+    self.global_work_shape = (RoundUp(self.workgroup_shape[0], self.image_width),
+                              RoundUp(self.workgroup_shape[1], self.image_height))
+
+    self.array_size = self.image_width*self.image_height
     
     self.context, self.device = self.create_context()
 
@@ -28,7 +34,7 @@ class OpenCL_DVS():
     self.previous_frame_gpu = cl_array.zeros(self.queue, self.array_size,\
                                              numpy.uint8)
     self.result_gpu  = cl_array.zeros(self.queue, self.array_size, numpy.int16)
-
+    
     self.program = self.init_program()
   
 
@@ -74,52 +80,52 @@ class OpenCL_DVS():
 
 
   def kernel_str(self):
-    kernel = "#pragma OPENCL EXTENSION cl_amd_media_ops : enable\n \
-#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable \n \
-\n \
-__kernel void difference(__global uchar* current, __global uchar* previous,\n \
-                         __global short*  output){\n \
-  uint col = get_global_id(0), row = get_global_id(1),\n \
-             global_idx = row*IMAGE_WIDTH + col;\n \
-  uint curr, prev, diff;\n\
-\n\
-  if(global_idx < IMAGE_SIZE){\n\
-    curr = current[global_idx];\n\
-    prev = previous[global_idx];\n\
-    diff = curr - prev;\n\
-    if( curr < prev ){\n\
-      output[global_idx] = diff < -128? -128: diff;\n\
-    }\n\
-    else if( prev < curr ){\n\
-      output[global_idx] = diff >  127?  127: diff;\n\
-    }\n\
-    else{\n\
-      output[global_idx] = 0;\n\
-    }\n\
-  }\n\
-\n\
-"
-    kernel = kernel.replace("IMAGE_SIZE", self.image_height*self.image_width)
-    kernel = kernel.replace("IMAGE_WIDTH", self.image_width)
+    kernel = """
+#pragma OPENCL EXTENSION cl_amd_media_ops : enable
+#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
+
+__kernel void difference(__global uchar* current, __global uchar* previous,
+                         __global short*  output){
+  uint col = get_global_id(0), row = get_global_id(1),
+       global_idx = row*IMAGE_WIDTH + col;
+       
+  int curr, prev, diff;
+
+  if(global_idx < IMAGE_SIZE){
+    curr = current[global_idx];
+    prev = previous[global_idx];
+    diff = curr - prev;
+    if( diff*diff > THRESHOLD ){
+      output[global_idx] = diff;
+    }
+    else{
+      output[global_idx] = 0;
+    }
+  }
+}
+"""
+    kernel = kernel.replace("IMAGE_SIZE", str(self.image_height*self.image_width))
+    kernel = kernel.replace("IMAGE_WIDTH", str(self.image_width))
+    kernel = kernel.replace("THRESHOLD", str(self.threshold*self.threshold))
     
     return kernel
 
 
   def process_frame(self, current_frame, previous_frame):
-    self.current_frame  = cl_array.to_device(self.queue, current_frame.reshape(self.array_size))
-    self.previous_frame = cl_array.to_device(self.queue, previous_frame.reshape(self.array_size))
+    '''Returns difference value and sorted indices for further processing'''
     
-    self.program(self.queue, self.global_work_shape, self.workgroup_shape,
-                 self.current_frame_gpu.data, self.previous_frame_gpu.data,
-                 self.result_gpu.data)
+    self.current_frame_gpu  = cl_array.to_device(self.queue, current_frame)
+    self.previous_frame_gpu = cl_array.to_device(self.queue, previous_frame)
     self.queue.finish()
+    self.program.difference(self.queue, self.global_work_shape, self.workgroup_shape,
+                            self.current_frame_gpu.data, self.previous_frame_gpu.data,
+                            self.result_gpu.data)
+    self.queue.finish()
+    diff = self.result_gpu.get()
     
-    result = self.result_gpu.get()
+    indices = numpy.argsort(diff)
     
-    pos = (result*(result > 0))
-    neg = (numpy.abs(result)*(result < 0))
-    
-    return pos, neg
+    return diff, indices
 
 
 
