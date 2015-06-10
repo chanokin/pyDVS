@@ -12,7 +12,6 @@ try:
   import pyopencl as cl
   using_opencl_dvs = True
   from opencl_dvs import OpenCL_DVS
-  print("Using OpenCL backend")
 except ImportError:
   using_opencl_dvs = False
   print("Using Numpy backend")
@@ -22,14 +21,16 @@ except ImportError:
 class pyDVS():
   
   
-  def __init__(self, video_capture_id, gray_bin_size = 10, threshold=0.2, 
+  def __init__(self, video_capture_id, gray_bin_size = 10, 
+               threshold=0.2, threshold_rate=0.1,
                force_numpy=True):
+
     self.gray_bin_size = gray_bin_size #divide 255 levels into bins
     self.current_frame  = None
-    self.previous_frame = None
     self.result_indices = None
     self.result_frame = None
     self.threshold = int(255*threshold)
+    self.threshold_rate = int(255*threshold_rate)
     self.frame_width    = 0
     self.frame_height   = 0
     self.frame_size     = 0
@@ -41,17 +42,25 @@ class pyDVS():
            'Unable to open VideoCapture device!'
     
     self.assess_video_features()
-      
+    
+    print(self.threshold)
+    print(self.threshold_rate)
     if force_numpy or not using_opencl_dvs:
-      self.processor = NumpyDVS(self.frame_width, self.frame_height, self.threshold)
+      print("Using Numpy backend")
+      self.processor = NumpyDVS(self.frame_width, self.frame_height, 
+                                self.threshold, self.threshold_rate)
     else:
-      self.processor = OpenCL_DVS(self.frame_width, self.frame_height, self.threshold)
+      print("Using OpenCL backend")
+
+      self.processor = OpenCL_DVS(self.frame_width, self.frame_height, 
+                                  self.threshold, self.threshold_rate)
       
 
     
-    self.previous_frame = numpy.zeros(self.frame_size, dtype=numpy.uint8)
-    self.current_frame = numpy.zeros(self.frame_size,  dtype=numpy.uint8)
-    
+    self.current_frame  = numpy.zeros(self.frame_size,  dtype=numpy.uint8)
+    self.result_frame   = numpy.zeros(self.frame_size,  dtype=numpy.int16)
+    self.result_indices = numpy.zeros(self.frame_size,  dtype=numpy.int16)
+
     self.time_bin_size = self.gray_bin_size/(self.frames_per_second*(2.**8. - 1.))
   
   
@@ -80,24 +89,17 @@ class pyDVS():
 
 
   def update(self):
-    ret = True
-    if self.first_frame is not None:
-      frame = self.first_frame
-      self.first_frame = None
-    else:
-      ret, frame = self.capture_device.read()
+    
+    ret, frame = self.capture_device.read()
     
     if ret is False:
       print("WARNING: Failed to read from capture device", file=sys.stderr)
     else:
-      self.previous_frame[:] = self.current_frame
-      self.current_frame[:]  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).reshape(self.frame_size)
-      #~ print("current  frame shape -> %s"%self.current_frame.shape)
-      #~ print("previous frame shape -> %s"%self.previous_frame.shape)
-      img, ind = self.processor.process_frame(self.current_frame, \
-                                              self.previous_frame)
-      self.result_frame = img
-      self.result_indices = ind
+      numpy.copyto(self.current_frame, 
+                   cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).reshape(self.frame_size))
+      img, ind = self.processor.process_frame(self.current_frame)
+      numpy.copyto(self.result_frame,   img)
+      numpy.copyto(self.result_indices, ind)
     
     return ret
     

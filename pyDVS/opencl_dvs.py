@@ -9,11 +9,14 @@ os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
     
 class OpenCL_DVS():
   
-  def __init__(self, image_width, image_height, threshold, cache_dir="./ocl_kernel_cache"):
+  def __init__(self, image_width, image_height, threshold, 
+               threshold_rate, max_threshold=64, cache_dir="./ocl_kernel_cache"):
     self.cache_dir = cache_dir
     self.image_width  = image_width
     self.image_height = image_height
     self.threshold = threshold
+    self.threshold_rate = threshold_rate
+    self.max_threshold = max_threshold
     
     self.workgroup_shape = (8, 8)
     self.global_work_shape = (RoundUp(self.workgroup_shape[0], self.image_width),
@@ -29,10 +32,16 @@ class OpenCL_DVS():
     
     self.queue = cl.CommandQueue(self.context, self.device)
 
+    self.threshold_gpu  = cl_array.zeros(self.queue, self.array_size,\
+                                         numpy.uint8)
+    self.threshold_gpu.fill(threshold)
+    
     self.current_frame_gpu  = cl_array.zeros(self.queue, self.array_size,\
                                              numpy.uint8)
     self.previous_frame_gpu = cl_array.zeros(self.queue, self.array_size,\
                                              numpy.uint8)
+    self.previous_frame_gpu.fill(127)
+    
     self.result_gpu  = cl_array.zeros(self.queue, self.array_size, numpy.int16)
     
     self.program = self.init_program()
@@ -42,10 +51,10 @@ class OpenCL_DVS():
     prog_src = self.kernel_str()
     program = cl.Program(self.context, prog_src)
     options = ['-Werror', 
-               #'-cl-mad-enable', 
+               '-cl-mad-enable', 
                '-cl-single-precision-constant', 
                '-cl-no-signed-zeros', 
-               #'-cl-fast-relaxed-math',
+               '-cl-fast-relaxed-math',
                ]
 
     if sys.platform == "darwin":
@@ -85,41 +94,54 @@ class OpenCL_DVS():
 #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 
 __kernel void difference(__global uchar* current, __global uchar* previous,
-                         __global short*  output){
-  uint col = get_global_id(0), row = get_global_id(1),
-       global_idx = row*IMAGE_WIDTH + col;
+                         __global uchar* threshold, __global short*  output){
+  uint global_idx = get_global_id(1)*IMAGE_WIDTH + get_global_id(0);
        
-  int curr, prev, diff;
+  int curr, prev, diff, thre;
 
   if(global_idx < IMAGE_SIZE){
-    curr = current[global_idx];
-    prev = previous[global_idx];
+    curr = convert_short(current[global_idx]);
+    prev = convert_short(previous[global_idx]);
+    thre = threshold[global_idx];
     diff = curr - prev;
-    if( diff*diff > THRESHOLD ){
-      output[global_idx] = diff;
+    
+    if( diff*diff > thre*thre ){
+      thre = thre + THRESHOLD_RATE_UP;
+      if(thre > MAX_THRESHOLD){
+        thre = MAX_THRESHOLD;
+      }
     }
     else{
-      output[global_idx] = 0;
+      diff = 0;
+      thre = thre - THRESHOLD_RATE_DOWN;
+      if(thre < 0){
+        thre = 0;
+      }
     }
+    
+    output[global_idx] = diff;
+    threshold[global_idx] = thre;
+    previous[global_idx] = curr;
   }
 }
 """
     kernel = kernel.replace("IMAGE_SIZE", str(self.image_height*self.image_width))
     kernel = kernel.replace("IMAGE_WIDTH", str(self.image_width))
-    kernel = kernel.replace("THRESHOLD", str(self.threshold*self.threshold))
+    kernel = kernel.replace("THRESHOLD_RATE_UP", str(self.threshold_rate))
+    kernel = kernel.replace("THRESHOLD_RATE_DOWN", str(self.threshold_rate))
+    kernel = kernel.replace("MAX_THRESHOLD", str(self.max_threshold))
     
     return kernel
 
 
-  def process_frame(self, current_frame, previous_frame):
+  def process_frame(self, current_frame):
     '''Returns difference value and sorted indices for further processing'''
     
     self.current_frame_gpu  = cl_array.to_device(self.queue, current_frame)
-    self.previous_frame_gpu = cl_array.to_device(self.queue, previous_frame)
-    self.queue.finish()
+
     self.program.difference(self.queue, self.global_work_shape, self.workgroup_shape,
                             self.current_frame_gpu.data, self.previous_frame_gpu.data,
-                            self.result_gpu.data)
+                            self.threshold_gpu.data, self.result_gpu.data)
     self.queue.finish()
     diff = self.result_gpu.get()
     
