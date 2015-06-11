@@ -23,6 +23,7 @@ class pyDVS():
   
   def __init__(self, video_capture_id, gray_bin_size = 10, 
                threshold=0.2, threshold_rate=0.1,
+               max_threshold=64, min_threshold=0,
                force_numpy=True):
 
     self.gray_bin_size = gray_bin_size #divide 255 levels into bins
@@ -31,6 +32,8 @@ class pyDVS():
     self.result_frame = None
     self.threshold = int(255*threshold)
     self.threshold_rate = int(255*threshold_rate)
+    self.max_threshold = max_threshold if max_threshold > self.threshold else self.threshold
+    self.min_threshold = min_threshold
     self.frame_width    = 0
     self.frame_height   = 0
     self.frame_size     = 0
@@ -43,17 +46,17 @@ class pyDVS():
     
     self.assess_video_features()
     
-    print(self.threshold)
-    print(self.threshold_rate)
     if force_numpy or not using_opencl_dvs:
       print("Using Numpy backend")
       self.processor = NumpyDVS(self.frame_width, self.frame_height, 
-                                self.threshold, self.threshold_rate)
+                                self.threshold, self.threshold_rate,
+                                self.max_threshold, self.min_threshold)
     else:
       print("Using OpenCL backend")
 
       self.processor = OpenCL_DVS(self.frame_width, self.frame_height, 
-                                  self.threshold, self.threshold_rate)
+                                  self.threshold, self.threshold_rate,
+                                  self.max_threshold, self.min_threshold)
       
 
     
@@ -80,7 +83,7 @@ class pyDVS():
     
     self.frames_per_second = self.capture_device.get(cv2.cv.CV_CAP_PROP_FPS)
     if self.frames_per_second == 0:
-      self.frames_per_second = 30.
+      self.frames_per_second = 24.
     
     
   def __del__(self):
