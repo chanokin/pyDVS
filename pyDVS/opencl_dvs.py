@@ -100,10 +100,28 @@ __kernel void difference(__global uchar4* current, __global uchar4* previous,
   uint row = get_global_id(1), col = get_global_id(0);
 
   //from basab's thesis off-centre
-  //[[ 0.27399398 -0.06762399  0.27399398]  
-  // [-0.06762399 -0.82547997 -0.06762399]
-  // [ 0.27399398 -0.06762399  0.27399398]]
-  
+//*
+  float k00 = -0.27399398, k01 = 0.06762399, k02 = -0.27399398,
+        k10 =  0.06762399, k11 = 0.82547997, k12 =  0.06762399,
+        k20 = -0.27399398, k21 = 0.06762399, k22 = -0.27399398;
+//*/
+
+/*
+  float k00 = -1./12., k01 = -1./12., k02 = -1./12.,
+        k10 = -1./12., k11 =  1./3.,  k12 = -1./12.,
+        k20 = -1./12., k21 = -1./12., k22 = -1./12.;
+*/
+/*
+  float k00 =  0,      k01 = -1./12., k02 =  0,
+        k10 = -1./12., k11 =  2./3.,  k12 = -1./12.,
+        k20 =  0,      k21 = -1./12., k22 =  0;
+*/
+/*
+  float k00 = -1./8., k01 = -1./8., k02 = -1./8.,
+        k10 = -1./8., k11 = 1.,     k12 = -1./8.,
+        k20 = -1./8., k21 = -1./8., k22 = -1./8.;
+*/
+
   if(row > 1 && col > 1 && row < IMAGE_HEIGHT_m_2 && col < IMAGE_WIDTH_m_2){
     uint global_idx = row*IMAGE_WIDTH + col;
     int4 gt_thresh = 0, true_vec = 1;
@@ -111,46 +129,78 @@ __kernel void difference(__global uchar4* current, __global uchar4* previous,
   
     int4 curr_conv_row0[2],
          curr_conv_row1[2],
-         prev_conv_row2[2];
+         curr_conv_row2[2];
+    
+    int4 conv;
+    
+    float sum = 0;
     
     curr_conv_row0[0] = convert_int4(current[global_idx - IMAGE_WIDTH]);
     curr_conv_row0[1] = convert_int4(current[global_idx - IMAGE_WIDTH_p_1]);
     curr_conv_row1[0] = convert_int4(current[global_idx]);
     curr_conv_row1[1] = convert_int4(current[global_idx + 1]);
-    curr_conv_row1[0] = convert_int4(current[global_idx + IMAGE_WIDTH]);
-    curr_conv_row1[1] = convert_int4(current[global_idx + IMAGE_WIDTH_p_1]);
-    
-    float sum = 0;
-    sum =  curr_conv_row0[0].x*(-0.27399398) + curr_conv_row0[0].y*(0.06762399) + curr_conv_row0[0].z*(-0.27399398);
-    sum += curr_conv_row1[0].x*(0.06762399)  + curr_conv_row1[0].y*(0.82547997) + curr_conv_row1[0].z*(0.06762399);
-    sum += prev_conv_row2[0].x*(-0.27399398) + prev_conv_row2[0].y*(0.06762399) + prev_conv_row2[0].z*(-0.27399398);
-    curr.x = sum;
-    
-    
-    sum = 0;
-    sum =  curr_conv_row0[0].y*(-0.27399398) + curr_conv_row0[0].z*(0.06762399) + curr_conv_row0[0].w*(-0.27399398);
-    sum += curr_conv_row1[0].y*(0.06762399)  + curr_conv_row1[0].z*(0.82547997) + curr_conv_row1[0].w*(0.06762399);
-    sum += prev_conv_row2[0].y*(-0.27399398) + prev_conv_row2[0].z*(0.06762399) + prev_conv_row2[0].w*(-0.27399398);
-    curr.y = sum;
-    
-    
-    sum = 0;
-    sum =  curr_conv_row0[0].z*(-0.27399398) + curr_conv_row0[0].w*(0.06762399) + curr_conv_row0[1].x*(-0.27399398);
-    sum += curr_conv_row1[0].z*(0.06762399)  + curr_conv_row1[0].w*(0.82547997) + curr_conv_row1[1].x*(0.06762399);
-    sum += prev_conv_row2[0].z*(-0.27399398) + prev_conv_row2[0].w*(0.06762399) + prev_conv_row2[1].x*(-0.27399398);
-    curr.z = sum;
-    
-    
-    sum = 0;
-    sum =  curr_conv_row0[0].w*(-0.27399398) + curr_conv_row0[1].x*(0.06762399) + curr_conv_row0[1].y*(-0.27399398);
-    sum += curr_conv_row1[0].w*(0.06762399)  + curr_conv_row1[1].x*(0.82547997) + curr_conv_row1[1].y*(0.06762399);
-    sum += prev_conv_row2[0].w*(-0.27399398) + prev_conv_row2[1].x*(0.06762399) + prev_conv_row2[1].y*(-0.27399398);
-    curr.w = sum;
-    
+    curr_conv_row2[0] = convert_int4(current[global_idx + IMAGE_WIDTH]);
+    curr_conv_row2[1] = convert_int4(current[global_idx + IMAGE_WIDTH_p_1]);
 
+/*
+    curr_conv_row0[0] -= convert_int4(previous[global_idx - IMAGE_WIDTH]);
+    curr_conv_row0[1] -= convert_int4(previous[global_idx - IMAGE_WIDTH_p_1]);
+    curr_conv_row1[0] -= convert_int4(previous[global_idx]);
+    curr_conv_row1[1] -= convert_int4(previous[global_idx + 1]);
+    curr_conv_row2[0] -= convert_int4(previous[global_idx + IMAGE_WIDTH]);
+    curr_conv_row2[1] -= convert_int4(previous[global_idx + IMAGE_WIDTH_p_1]);
+*/
+/*
+    curr_conv_row0[0] = convert_int4(abs(curr_conv_row0[0]));
+    curr_conv_row0[1] = convert_int4(abs(curr_conv_row0[1]));
+    curr_conv_row1[0] = convert_int4(abs(curr_conv_row1[0]));
+    curr_conv_row1[1] = convert_int4(abs(curr_conv_row1[1]));
+    curr_conv_row2[0] = convert_int4(abs(curr_conv_row2[0]));
+    curr_conv_row2[1] = convert_int4(abs(curr_conv_row2[1]));
+*/ 
+
+    curr = convert_int4(current[global_idx]);
     prev = convert_int4(previous[global_idx]);
     thre = convert_int4(threshold[global_idx]);
+    
+    sum = 0;
+    sum =  curr_conv_row0[0].x*k00 + curr_conv_row0[0].y*k01 + curr_conv_row0[0].z*02;
+    //sum += curr_conv_row1[0].x*k10 + curr.x*k11              + curr_conv_row1[0].z*k12;
+    sum += curr_conv_row1[0].x*k10 + curr_conv_row1[0].y*k11 + curr_conv_row1[0].z*k12;
+    sum += curr_conv_row2[0].x*k20 + curr_conv_row2[0].y*k21 + curr_conv_row2[0].z*k22;
+    conv.x = sum;
+    
+    
+    sum = 0;
+    sum =  curr_conv_row0[0].y*k00 + curr_conv_row0[0].z*k01 + curr_conv_row0[0].w*k02;
+    //sum += curr_conv_row1[0].y*k10 + curr.y*k11              + curr_conv_row1[0].w*k12;
+    sum += curr_conv_row1[0].y*k10 + curr_conv_row1[0].z*k11 + curr_conv_row1[0].w*k12;
+    sum += curr_conv_row2[0].y*k20 + curr_conv_row2[0].z*k21 + curr_conv_row2[0].w*k22;
+    conv.y = sum;
+    
+    
+    sum = 0;
+    sum =  curr_conv_row0[0].z*k00 + curr_conv_row0[0].w*k01 + curr_conv_row0[1].x*k02;
+    //sum += curr_conv_row1[0].z*k10 + curr.z*k11              + curr_conv_row1[1].x*k12;
+    sum += curr_conv_row1[0].z*k10 + curr_conv_row1[0].w*k11 + curr_conv_row1[1].x*k12;
+    sum += curr_conv_row2[0].z*k20 + curr_conv_row2[0].w*k21 + curr_conv_row2[1].x*k22;
+    conv.z = sum;
+    
+    
+    sum = 0;
+    sum =  curr_conv_row0[0].w*k00 + curr_conv_row0[1].x*k01 + curr_conv_row0[1].y*k02;
+    //sum += curr_conv_row1[0].w*k10 + curr.w*k11              + curr_conv_row1[1].y*k12;
+    sum += curr_conv_row1[0].w*k10 + curr_conv_row1[1].x*k11 + curr_conv_row1[1].y*k12;
+    sum += curr_conv_row2[0].w*k20 + curr_conv_row2[1].x*k21 + curr_conv_row2[1].y*k22;
+    conv.w = sum;
+    
+    
+    curr = conv;
+
     diff = curr - prev;
+    //diff = conv - prev;
+    //curr = conv;
+    //diff = conv;
     
     gt_thresh = diff*diff > thre*thre ? true_vec : gt_thresh;
     
