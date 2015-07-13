@@ -1,6 +1,8 @@
 import pyopencl as cl
 import pyopencl.array as cl_array
 from pyopencl.algorithm import RadixSort
+#from pyopencl.clrandom import RanluxGenerator
+#import pyopencl.clrandom as cl_rand
 import numpy
 import sys
 import os
@@ -35,15 +37,23 @@ class OpenCL_DVS():
     self.queue = cl.CommandQueue(self.context, self.device)
 
     self.threshold_gpu  = cl_array.zeros(self.queue, self.array_size,\
-                                         cl_array.vec.uchar4)
-    self.threshold_gpu.fill(cl_array.vec.make_uchar4(threshold))
+                                         cl_array.vec.short4)
+    self.threshold_gpu.fill(cl_array.vec.make_short4(threshold))
     
     self.current_frame_gpu  = cl_array.zeros(self.queue, self.array_size,\
-                                             cl_array.vec.uchar4)
+                                             cl_array.vec.short4)
+
     self.previous_frame_gpu = cl_array.zeros(self.queue, self.array_size,\
-                                             cl_array.vec.uchar4)
-    self.previous_frame_gpu.fill(cl_array.vec.make_uchar4(0))
+                                             cl_array.vec.short4)
+    self.previous_frame_gpu.fill(cl_array.vec.make_short4(0))
     
+    #~ self.previous_frame_gpu = cl_rand.rand(self.queue, self.array_size,\
+                                           #~ cl_array.vec.short4)
+    #~ randGen = RanluxGenerator(self.queue)
+    #~ randGen.fill_uniform(self.previous_frame_gpu, -32, 32)
+    
+    
+        
     self.result_gpu  = cl_array.zeros(self.queue, self.array_size, \
                                       cl_array.vec.short4)
     
@@ -95,8 +105,8 @@ class OpenCL_DVS():
     kernel = """
 #pragma OPENCL EXTENSION cl_amd_media_ops : enable
 
-__kernel void difference(__global uchar4* current, __global uchar4* previous,
-                         __global uchar4* threshold, __global short4*  output){
+__kernel void difference(__global short4* current, __global short4* previous,
+                         __global short4* threshold, __global short4*  output){
   uint row = get_global_id(1), col = get_global_id(0);
 
   //from basab's thesis off-centre
@@ -211,8 +221,8 @@ __kernel void difference(__global uchar4* current, __global uchar4* previous,
     thre = thre < MIN_THRESHOLD ? MIN_THRESHOLD : thre;
 
     output[global_idx]    = convert_short4(diff);
-    threshold[global_idx] = convert_uchar4(thre);
-    previous[global_idx]  = convert_uchar4(curr);
+    threshold[global_idx] = convert_short4(thre);
+    previous[global_idx]  = convert_short4(curr);
   }
 }
 """
@@ -255,19 +265,19 @@ __kernel void difference(__global uchar4* current, __global uchar4* previous,
     kernel = kernel.replace("IMAGE_WIDTH_m_2", str(self.image_width - 2))
     kernel = kernel.replace("IMAGE_HEIGHT", str(self.image_height))
     kernel = kernel.replace("IMAGE_WIDTH", str(self.image_width))
-    kernel = kernel.replace("THRESHOLD_RATE_UP", str(self.threshold_rate))
-    kernel = kernel.replace("THRESHOLD_RATE_DOWN", str(self.threshold_rate))
+    kernel = kernel.replace("THRESHOLD_RATE_UP", str(int(self.threshold_rate)))
+    kernel = kernel.replace("THRESHOLD_RATE_DOWN", str(int(self.threshold_rate)))
     kernel = kernel.replace("MAX_THRESHOLD", str(self.max_threshold))
     kernel = kernel.replace("MIN_THRESHOLD", str(self.min_threshold))
 
-    #print kernel
+    print kernel
     return kernel
     
     
   def process_frame(self, current_frame):
     '''Returns difference value and sorted indices for further processing'''
     
-    self.current_frame_gpu.set(current_frame.astype(cl_array.vec.uchar4))
+    self.current_frame_gpu.set(current_frame.astype(cl_array.vec.short4))
 
     self.program.difference(self.queue, self.global_work_shape, self.workgroup_shape,
                             self.current_frame_gpu.data, self.previous_frame_gpu.data,

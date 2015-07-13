@@ -10,11 +10,11 @@ from pyDVS import pyDVS
 
 
 blue, green, red = range(3)
-threshold = 0.01
+threshold = 0.1
 threshold_rate = 0.01
-max_threshold = 96
-min_threshold = 8
-max_count = 500#0#000000
+max_threshold = 280 #96
+min_threshold = 64
+max_count = 300#0#000000
 max_dummy_count = 0
 dummy_count = 0 
 count = 0
@@ -25,8 +25,8 @@ force_numpy=False
 #video_device = sys.argv[1]
 #video_device = "../../sources/paprika.mp4"
 #video_device = "../../sources/visor_1203702621921_competition_short.avi"
-video_device = "../../sources/visor_1203702802078_Camera2_070605.avi"
-#video_device = "../../sources/bowing_cif.y4m"
+#video_device = "../../sources/visor_1203702802078_Camera2_070605.avi"
+video_device = "../../sources/bowing_cif.y4m"
 #video_device = "../../sources/action_youtube_naudio/walking/v_walk_dog_12/v_walk_dog_12_04.avi"
 mydvs = pyDVS(video_device, force_numpy=force_numpy, threshold=threshold,
               threshold_rate=threshold_rate, max_threshold=max_threshold,
