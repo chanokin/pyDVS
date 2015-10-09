@@ -5,39 +5,50 @@ import cv
 import cv2
 import sys
 import time
-
+from os.path import basename, splitext
 from pyDVS import pyDVS
 
 
 blue, green, red = range(3)
-threshold = 0.1
-threshold_rate = 0.01
-max_threshold = 280 #96
-min_threshold = 64
-max_count = 300#0#000000
+threshold = 0.0
+starting_val = 0
+threshold_rate = 0.0
+max_threshold = 96
+min_threshold = 8
+max_count = 300
+#~ max_count = 9000000000000
 max_dummy_count = 0
 dummy_count = 0 
 count = 0
 frame_available = True
 grayscale_video = False
+input_to_log = False
+use_conv = True
+
 #force_numpy=True
 force_numpy=False
 #video_device = sys.argv[1]
-#video_device = "../../sources/paprika.mp4"
+#~ video_device = "../../sources/paprika.mp4"
 #video_device = "../../sources/visor_1203702621921_competition_short.avi"
-#video_device = "../../sources/visor_1203702802078_Camera2_070605.avi"
-video_device = "../../sources/bowing_cif.y4m"
-#video_device = "../../sources/action_youtube_naudio/walking/v_walk_dog_12/v_walk_dog_12_04.avi"
+#~ video_device = "../../sources/visor_1203702802078_Camera2_070605.avi"
+#~ video_device = "../../sources/bowing_cif.y4m"
+#~ video_device = "../../sources/120fpsHFRSample.mp4"
+#~ video_device = "../../sources/GoPro HD Hero 2 120fps Slow Motion.mp4"
+video_device = "../../sources/iPhone 5s - 120fps Slow Motion Ultimate Video Test.mp4"
+#~ video_device = "../../sources/action_youtube_naudio/walking/v_walk_dog_12/v_walk_dog_12_04.avi"
 mydvs = pyDVS(video_device, force_numpy=force_numpy, threshold=threshold,
               threshold_rate=threshold_rate, max_threshold=max_threshold,
-              min_threshold=min_threshold)
+              min_threshold=min_threshold, starting_val=starting_val, 
+              input_to_log=input_to_log, use_conv=use_conv)
 width = mydvs.frame_width
 height = mydvs.frame_height
 
 fps = mydvs.frames_per_second
 fourcc = cv.CV_FOURCC(*'XVID')
 #output_file = sys.argv[2]
-output_file = "output"
+video_name = "%s"%(splitext(basename(video_device))[0])
+log_or_linear = "log" if input_to_log else "linear"
+output_file = "output_thres-%s_%s_%s"%(threshold, video_name, log_or_linear)
 video_writer = cv2.VideoWriter('%s.avi'%(output_file),fourcc, fps, 
                                (width, height), not grayscale_video)
 composite = numpy.zeros((height, width, 3), dtype=numpy.uint8)
@@ -66,6 +77,10 @@ while frame_available and count < max_count:
     composite[:,:, red] = (curr_frame + neg_frame).reshape((height, width)) 
     composite[:,:, green] = (curr_frame + pos_frame).reshape((height, width))
     composite[:,:, blue] = curr_frame.reshape((height, width))
+    
+    #~ composite[:,:, red] = (neg_frame).reshape((height, width)) 
+    #~ composite[:,:, green] = ( pos_frame).reshape((height, width))
+    
     
     #~ composite[:,:, blue] = mydvs.processor.threshold.reshape((height, width))
     

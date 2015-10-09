@@ -4,7 +4,8 @@ class NumpyDVS():
   
   def __init__(self, image_width, image_height, 
                threshold=0.01, threshold_rate=0.01, max_threshold=64,
-               min_threshold=0):
+               min_threshold=0, starting_val=50, input_to_log=False,
+               use_conv=False):
     self.threshold_rate = threshold_rate
     self.threshold = numpy.ones(image_height*image_width, dtype=numpy.uint16)*threshold
     self.previous_frame = numpy.ones(image_height*image_width, dtype=numpy.int16)*127

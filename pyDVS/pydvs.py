@@ -24,13 +24,16 @@ class pyDVS():
   def __init__(self, video_capture_id, gray_bin_size = 10, 
                threshold=0.2, threshold_rate=0.1,
                max_threshold=64, min_threshold=0,
+               starting_val=50, input_to_log=False,
+               use_conv=False,
                force_numpy=True):
 
     self.gray_bin_size = gray_bin_size #divide 255 levels into bins
     self.current_frame  = None
     self.result_indices = None
     self.result_frame = None
-    self.threshold = int(255*threshold)
+    #~ self.threshold = int(255*threshold)
+    self.threshold = threshold
     self.threshold_rate = int(255*threshold_rate)
     self.max_threshold = max_threshold if max_threshold > self.threshold else self.threshold
     self.min_threshold = min_threshold
@@ -38,7 +41,10 @@ class pyDVS():
     self.frame_height   = 0
     self.frame_size     = 0
     self.frames_per_second = 0
+    self.starting_val = 0
     self.first_frame = None
+    self.input_to_log = input_to_log
+    self.use_conv = use_conv
     self.capture_device = cv2.VideoCapture(video_capture_id)
     
     assert self.capture_device.isOpened(), \
@@ -50,13 +56,18 @@ class pyDVS():
       print("Using Numpy backend")
       self.processor = NumpyDVS(self.frame_width, self.frame_height, 
                                 self.threshold, self.threshold_rate,
-                                self.max_threshold, self.min_threshold)
+                                self.max_threshold, self.min_threshold,
+                                self.starting_val, self.input_to_log,
+                                self.use_conv)
+                                
     else:
       print("Using OpenCL backend")
 
       self.processor = OpenCL_DVS(self.frame_width, self.frame_height, 
                                   self.threshold, self.threshold_rate,
-                                  self.max_threshold, self.min_threshold)
+                                  self.max_threshold, self.min_threshold,
+                                  self.starting_val, self.input_to_log,
+                                  self.use_conv)
       
 
     
