@@ -1,3 +1,6 @@
+from __future__ import print_function
+
+
 import logging
 
 spinn_version = "master"
@@ -245,7 +248,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         
         AbstractProvidesOutgoingConstraints.__init__(self)
         
-        print "number of neurons for webcam = %d"%self._n_neurons
+        #~ print("number of neurons for webcam = %d"%self._n_neurons)
         
         self._live_conn = SpynnakerLiveSpikesConnection(send_labels = [self._label, ],
                                                         local_port = self._local_port)
@@ -346,7 +349,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             
             prev_time = get_time_s()
             
-        print "webcam runtime ", app_curr_time - app_start_time
+        print("sPyNNaker DVS emulator run time: %s s"%(app_curr_time - app_start_time))
         img_queue.put(None)
         spike_gen_proc.join()
         
@@ -413,7 +416,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
         if self._save_spikes is not None:
             #print spike_list
-            print "attempting to save spike_list"
+            print("Saving generated spikes to %s"%(self._save_spikes))
             pickle.dump( spike_list, open(self._save_spikes, "wb") )
 
     
