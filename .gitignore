@@ -1,0 +1,5 @@
+application_generated_data_files
+reports
+*.pyc
+*.p
+*.pickle
