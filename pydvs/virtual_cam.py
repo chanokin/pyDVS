@@ -215,7 +215,6 @@ class VirtualCam():
     if not self.showing_img:
 
       if run_time >= inter_off_time:
-        print("hiding run time, ", run_time)
         self.showing_img = True
         self.on_off_start_time = get_time()
 
@@ -241,7 +240,6 @@ class VirtualCam():
 
     else:
       if run_time >= image_on_time:
-        print("showing run time, ", run_time)
         self.showing_img = False
         self.on_off_start_time = get_time()
         self.frame_number = 0
