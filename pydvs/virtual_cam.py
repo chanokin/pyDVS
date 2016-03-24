@@ -59,7 +59,7 @@ class VirtualCam():
     self.inter_off_time = inter_off_time_ms/1000.
     
     self.max_saccade_distance = max_saccade_distance
-    self.traverse_speed = (resolution*2.)/((image_on_time_ms/1000.)*fps)
+    self.traverse_speed = (resolution*2.)/(self.image_on_time*self.fps)
     self.frames_per_microsaccade = frames_per_microsaccade
     self.frames_per_saccade = frames_per_saccade
     self.background_gray = background_gray
@@ -96,6 +96,10 @@ class VirtualCam():
 
     self.frame_prev_time = get_time()
     
+    self.lock = Lock()
+
+    #~ self.locking_thread = Thread(name="locking", target=self.frame_rate_constraint,
+                                 #~ args=(self.time_period,))
     self.frame_number = 0
     
     self.current_buffer = 0
@@ -133,6 +137,26 @@ class VirtualCam():
     self.showing_img = True
     #~ self.locking_thread.start()
     
+
+
+  def frame_rate_constraint(self, time_period):
+    prev_time = get_time()
+    lock = Lock()
+
+    while self.running:
+      curr_time = get_time()
+      
+      if curr_time - prev_time >= time_period:
+        lock.acquire()
+        try:
+          self.locked = False
+        finally:
+          lock.release()
+        #~ print(curr_time - prev_time)
+        prev_time = curr_time
+    
+    self.locked = False
+
 
 
   def handle_double_buffering(self):
@@ -175,9 +199,9 @@ class VirtualCam():
     traverse = VirtualCam.BEHAVE_TRAVERSE
     fade = VirtualCam.BEHAVE_FADE
     showing_img = self.showing_img
-    on_off_start_time = self.on_off_start_time
     move_image = self.move_image
     fps = self.fps
+    lock = self.lock
     num_images = self.total_images
     image_buffer = self.image_buffer[self.current_buffer]
     all_in_buffer = self.all_in_buffer
@@ -186,11 +210,12 @@ class VirtualCam():
       #~ pass
 
     start = get_time()
-    run_time = start - on_off_start_time
+    run_time = start - self.on_off_start_time
+    
+    if not self.showing_img:
 
-    if not showing_img:
-
-      if run_time >= self.inter_off_time:
+      if run_time >= inter_off_time:
+        print("hiding run time, ", run_time)
         self.showing_img = True
         self.on_off_start_time = get_time()
 
@@ -216,15 +241,15 @@ class VirtualCam():
 
     else:
       if run_time >= image_on_time:
+        print("showing run time, ", run_time)
         self.showing_img = False
-        self.start_time = get_time()
-        
+        self.on_off_start_time = get_time()
+        self.frame_number = 0
       else:
         move_image(ref)
       
     self.frame_number += 1
-    if self.frame_number >= fps:
-      self.frame_number = 0
+
     
 
     self.prev_time = get_time()
@@ -242,8 +267,7 @@ class VirtualCam():
     
     first_run = self.first_run
     filename = self.image_filenames[idx]
-    width = self.width
-    height = self.height
+    width = self.width; height = self.height
     original = self.original_image
 
     if first_run:
@@ -278,11 +302,10 @@ class VirtualCam():
         diff = scaled_width - width
         from_col = diff//2
         to_col = self.from_col + self.width
-        from_row = 0
-        to_row = self.height
+        
         self.tmp_image = resize(gray, (scaled_width, height), interpolation=CV_INTER_NN)
                                     
-        original[:] = self.tmp_image[:, from_col:to_col]
+        original[:] = gray[:, from_col:to_col]
       
       self.first_run = False
       self.from_col = from_col; self.to_col = to_col
@@ -290,12 +313,12 @@ class VirtualCam():
       
     else:
       gray = self.gray_image
-      tmp_image = self.tmp_image
+      tmp = self.tmp_image
       img_smaller = self.img_smaller
       from_col = self.from_col; to_col = self.to_col
       from_row = self.from_row; to_row = self.to_row
       scaled_width = self.scaled_width
-      
+
       gray[:] = imread(filename, CV_LOAD_IMAGE_GRAYSCALE)
 
       if img_smaller:
@@ -308,30 +331,7 @@ class VirtualCam():
     return original.copy()
 
 
-  def isOpened(self):
-    if len(self.image_filenames) > 0:
-      return True
-    
-    return False
 
-
-  def get(self, prop):
-    if prop == CV_CAP_PROP_FRAME_WIDTH:
-      return self.width
-    elif prop == CV_CAP_PROP_FRAME_HEIGHT:
-      return self.height
-    elif prop == CV_CAP_PROP_FPS:
-      return self.fps
-    
-    raise Exception("Property not available")
-
-
-  def set(self, prop):
-    raise Exception("Property setting not available")
-
-  def release(self):
-    pass # opencv video source compatibility
-  
   def move_image(self, ref):
     img = self.current_image
     fps = self.fps
