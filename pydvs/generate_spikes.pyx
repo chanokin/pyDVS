@@ -709,6 +709,7 @@ cdef DTYPE_t spike_to_key(DTYPE_t row, DTYPE_t col,
 def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                           numpy.ndarray[DTYPE_t, ndim=2] neg_spikes,
                           DTYPE_t global_max,
+                          DTYPE_t threshold,
                           DTYPE_U8_t flag_shift, 
                           DTYPE_U8_t data_shift, 
                           DTYPE_U8_t data_mask,
@@ -727,7 +728,7 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
     :returns list_of_lists: A list containing lists of keys that should be sent. Each
                             key in the internal lists should be sent "at the same time"
   """
-  cdef unsigned int max_spikes = max(global_max, max_time_ms), \
+  cdef unsigned int max_spikes = max_time_ms, \
                     len_neg = len(neg_spikes[0]), \
                     len_pos = len(pos_spikes[0])
   cdef unsigned int max_pix = len_neg + len_pos
@@ -738,15 +739,17 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
   cdef list list_of_lists = list()
   cdef DTYPE_t val
   
-  
+  for list_idx in range(max_spikes):
+    list_of_lists.append( list() )
+    
   for pix_idx in range(max_pix):
     if pix_idx < len_pos:
       spike_key = spike_to_key(pos_spikes[ROWS, pix_idx], \
                                pos_spikes[COLS, pix_idx], \
                                flag_shift, data_shift, data_mask,\
                                is_pos_spike = 1)
-      val = pos_spikes[VALS, pix_idx]
-      spike_idx = min(max_spikes, val)
+      val = pos_spikes[VALS, pix_idx]/threshold
+      spike_idx = min(max_spikes-1, val)
         
     else:
       spike_key = spike_to_key(neg_spikes[ROWS, pix_idx], \
@@ -754,13 +757,11 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                flag_shift, data_shift, data_mask,\
                                is_pos_spike = 0)
 
-      val = neg_spikes[VALS, pix_idx - len_pos]
-      spike_idx = min(max_spikes, -val)
+      val = neg_spikes[VALS, pix_idx - len_pos]/threshold
+#~       print("neg rate spikes val, key", val, spike_key)
+      spike_idx = min(max_spikes-1, val)
 
-    for list_idx in range(spike_idx):
-      if (len(list_of_lists) - 1) < list_idx:
-        list_of_lists.append(list())
-          
+    for list_idx in range(spike_idx):          
       list_of_lists[list_idx].append(spike_key)
 
       
@@ -810,7 +811,7 @@ def make_spike_lists_time(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
   cdef list list_of_lists = list()
   
   for time_idx in range(num_bins):
-    list_of_lists.append(list())
+    list_of_lists.append( list() )
   
 #~   print list_of_lists
   
@@ -821,17 +822,17 @@ def make_spike_lists_time(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                pos_spikes[COLS, pix_idx], \
                                flag_shift, data_shift, data_mask,\
                                is_pos_spike = 1)
-      num_thresh = min(pos_spikes[VALS, pix_idx]/min_threshold  - 1, num_bins)
+      num_thresh = min(pos_spikes[VALS, pix_idx]/min_threshold  - 1, num_bins - 1)
     else:
       spike_key = spike_to_key(neg_spikes[ROWS, pix_idx - len_pos], \
                                neg_spikes[COLS, pix_idx - len_pos], \
                                flag_shift, data_shift, data_mask,\
                                is_pos_spike = 0)
       
-      num_thresh = min(neg_spikes[VALS, pix_idx - len_pos]/min_threshold - 1, num_bins)
+      num_thresh = min(neg_spikes[VALS, pix_idx - len_pos]/min_threshold - 1, num_bins - 1)
     
-    time_idx = num_bins - num_thresh
-#~     print "max_num_thresh (%s), num_thresh (%s), time_idx (%s)"%(max_num_thresh, num_thresh, time_idx)
+    time_idx = num_bins - num_thresh - 1
+#~     print "num_bins(%s), num_thresh (%s), time_idx (%s)"%(num_bins, num_thresh, time_idx)
     list_of_lists[time_idx].append( spike_key )
   
   return list_of_lists
