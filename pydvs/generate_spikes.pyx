@@ -240,7 +240,7 @@ def update_reference_rate(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
   # at most max_time_ms spikes
   num_spikes = numpy.clip(num_spikes, 0, max_time_ms, out=num_spikes)
   # can only update N*threshold quantities
-  ref_frame = DTYPE(history_weight*ref_frame) + num_spikes*spikes*threshold
+  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + num_spikes*spikes*threshold, 0, 255)
   
   return ref_frame
 
@@ -291,7 +291,7 @@ def update_reference_rate_adpt(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
                                                                      down_threshold_change
   threshold -= update
   
-  return ref_frame, threshold
+  return numpy.clip(ref_frame, 0, 255), threshold
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -326,7 +326,7 @@ def update_reference_time_thresh(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
   """
   cdef numpy.ndarray[DTYPE_t, ndim=2] mult = numpy.clip(abs_diff/threshold, 0, max_time_ms)
 #~   print abs_diff[:10, :10]
-  ref_frame = DTYPE(history_weight*ref_frame) + spikes*mult*threshold
+  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + spikes*mult*threshold, 0, 255)
   
   return ref_frame
 
@@ -368,10 +368,9 @@ def update_reference_time_binary_raw(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
    val           32          4
    original = 38, encoded with only 2 active bits = 36
   """
-
   cdef numpy.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff])
 #~   print abs_diff[:10, :10]
-  ref_frame = DTYPE(history_weight*ref_frame) + spikes*mult
+  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + spikes*mult, 0, 255)
   
   return ref_frame
 
@@ -418,7 +417,7 @@ def update_reference_time_binary_thresh(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
 
   cdef numpy.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff/threshold])
 
-  ref_frame = DTYPE(history_weight*ref_frame) + spikes*mult*threshold
+  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + spikes*mult*threshold, 0, 255)
   
   return ref_frame
   
@@ -590,7 +589,8 @@ def render_comparison(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
     -----------------------------------------------
       
   """
-  cdef numpy.ndarray[DTYPE_U8_t, ndim=3] out = numpy.zeros([2*height, 4*width, 3], dtype=DTYPE_U8)
+#~   cdef numpy.ndarray[DTYPE_U8_t, ndim=3] out = numpy.zeros([2*height, 4*width, 3], dtype=DTYPE_U8)
+  cdef numpy.ndarray[DTYPE_U8_t, ndim=3] out = numpy.zeros([height, 4*width, 3], dtype=DTYPE_U8)
   
   out[:height, 0:width, 0] = curr_frame
   out[:height, 0:width, 1] = curr_frame
@@ -606,15 +606,15 @@ def render_comparison(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
   out[:height, 2*width:3*width, 2] = numpy.abs(curr_frame - ref_frame)
   out[:height, 3*width:, :] = spikes_frame
   
-  out[height:, 0:width, 0] = lap_curr
-  out[height:, 0:width, 1] = lap_curr
-  out[height:, 0:width, 2] = lap_curr
-  out[height:, width:2*width, 0] = lap_ref
-  out[height:, width:2*width, 1] = lap_ref
-  out[height:, width:2*width, 2] = lap_ref
-  out[height:, 2*width:3*width, 0] = numpy.abs(lap_curr - lap_ref)
-  out[height:, 2*width:3*width, 1] = numpy.abs(lap_curr - lap_ref)
-  out[height:, 2*width:3*width, 2] = numpy.abs(lap_curr - lap_ref)
+#~   out[height:, 0:width, 0] = lap_curr
+#~   out[height:, 0:width, 1] = lap_curr
+#~   out[height:, 0:width, 2] = lap_curr
+#~   out[height:, width:2*width, 0] = lap_ref
+#~   out[height:, width:2*width, 1] = lap_ref
+#~   out[height:, width:2*width, 2] = lap_ref
+#~   out[height:, 2*width:3*width, 0] = numpy.abs(lap_curr - lap_ref)
+#~   out[height:, 2*width:3*width, 1] = numpy.abs(lap_curr - lap_ref)
+#~   out[height:, 2*width:3*width, 2] = numpy.abs(lap_curr - lap_ref)
   
   return out
   
