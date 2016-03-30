@@ -1,6 +1,3 @@
-from __future__ import print_function
-
-
 import logging
 
 spinn_version = "master"
@@ -51,8 +48,7 @@ import numpy
 from numpy import where, logical_and, argmax
 from numpy import uint8, uint16, int16
 from multiprocessing import Process, Queue
-from time import time as get_time_s,\
-                 sleep as sleep_s
+import time
 from operator import itemgetter
 import pickle
 
@@ -206,7 +202,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         self._scaled_width = 0
         self._fps = fps
         self._max_time_ms = 0
-        self._prev_time = 0
+        self._time_per_frame = 0.
         
         self._time_per_spike_pack_ms = 0
         
@@ -248,7 +244,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         
         AbstractProvidesOutgoingConstraints.__init__(self)
         
-        #~ print("number of neurons for webcam = %d"%self._n_neurons)
+        print "number of neurons for webcam = %d"%self._n_neurons
         
         self._live_conn = SpynnakerLiveSpikesConnection(send_labels = [self._label, ],
                                                         local_port = self._local_port)
@@ -309,18 +305,17 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         spike_gen_proc = Process(target=self.process_frame, args=(img_queue, spike_queue))
         spike_gen_proc.start()
         
+        grab_times = []
         start_time = 0.
-        app_start_time = get_time_s()
-        app_curr_time = get_time_s()
+        app_start_time = time.time()
+        app_curr_time = time.time()
         first_frame = True
-        prev_time = get_time_s()
-        max_frame_time = self._max_time_ms/1000.
-        wait_time = 0
-        
+        frame_time = 0.
         while self._running:
             
-            start_time = get_time_s()
+            start_time = time.time()
             valid_frame = self.grab_frame()
+            grab_times.append(time.time() - start_time)
             
             if not valid_frame:
                 self._running = False
@@ -336,20 +331,14 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             
             img_queue.put(self._curr_frame)
             
-            app_curr_time = get_time_s()
-            wait_time = max_frame_time - (app_curr_time - prev_time)
-            if wait_time > 0:
-                #~ print "run frame => wait time = %3.6f"%wait_time
-                sleep_s(wait_time)
-            
-            app_curr_time = get_time_s()
-
+            app_curr_time = time.time()
             if app_curr_time - app_start_time > max_run_time_s:
-                self._running = False
-            
-            prev_time = get_time_s()
-            
-        print("sPyNNaker DVS emulator run time: %s s"%(app_curr_time - app_start_time))
+              self._running = False
+            frame_time = time.time() - start_time
+            if frame_time < self._time_per_frame:
+              time.sleep(self._time_per_frame - frame_time)
+
+        print "webcam runtime ", app_curr_time - app_start_time
         img_queue.put(None)
         spike_gen_proc.join()
         
@@ -358,8 +347,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         
         if self._video_source is not None:
             self._video_source.release()
-        
-        cv2.destroyAllWindows()
+            cv2.destroyAllWindows()
 
 
     def process_frame(self, img_queue, spike_queue):
@@ -367,35 +355,42 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         label = self._label
         sender = self._sender
         spikes_frame = self._spikes_frame
-        wait_time = self._max_time_ms
         cv2.namedWindow (label)
         spike_list = []
+        gen_times = []
+        compose_times = []
+        transform_times = []
+        ref_up_times = []
         start_time = 0.
         end_time   = 0.
         lists = None
-        prev_time = get_time_s()
-        max_frame_time = self._max_time_ms/1000.
-        wait_time = 0
-        curr_time = 0
-        
         while True:
             image = img_queue.get()
             
             if image is None or not self._running:  
                 break
             
+            start_time = time.time()
             self.generate_spikes(image)
-
+            gen_times.append(time.time()-start_time)
+            
+            start_time = time.time()
             self.update_reference()
-
+            ref_up_times.append(time.time()-start_time)
+            
+            start_time = time.time()
             lists = self.transform_spikes()
+            transform_times.append(time.time() - start_time)
             
             spike_queue.put(lists)
             
             if self._save_spikes is not None:
                 spike_list.append(lists)
             
+            start_time = time.time()
             self.compose_output_frame()
+            compose_times.append(time.time()-start_time)
+            
             
             cv2.imshow (label, spikes_frame)  
             
@@ -403,20 +398,23 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                #or not sender.isAlive():
                 self._running = False
                 break
-            
-            curr_time = get_time_s()
-            wait_time = max_frame_time - (curr_time - prev_time)
-            if wait_time > 0:
-                #~ print "process frame => wait time = %3.6f"%wait_time
-                sleep_s(wait_time)
-
-            prev_time = get_time_s()
+                
+            #continue                             
+        
+        print("gen times")
+        print(numpy.array(gen_times).mean())
+        print("update ref times")
+        print(numpy.array(ref_up_times).mean())
+        print("transform times")
+        print(numpy.array(transform_times).mean())
+        print("compose times")
+        print(numpy.array(compose_times).mean())
 
         cv2.destroyAllWindows()
 
         if self._save_spikes is not None:
             #print spike_list
-            print("Saving generated spikes to %s"%(self._save_spikes))
+            print "attempting to save spike_list"
             pickle.dump( spike_list, open(self._save_spikes, "wb") )
 
     
@@ -434,7 +432,6 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
 
     def acquire_device(self):
-
         if isinstance(self._device_id, VirtualCam):
             self._video_source = self._device_id
             self._is_virtual_cam = True
@@ -456,6 +453,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             self._fps = self._video_source.get(CV_CAP_PROP_FPS)
 
         self._max_time_ms = int16((1./self._fps)*1000)
+        self._time_per_frame = 1./self._fps
         
         self._time_per_spike_pack_ms = self.calculate_time_per_pack()
 
@@ -463,30 +461,32 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
 
     def grab_frame(self):
+        #~ start_time = time.time()
         if self._is_virtual_cam:
             valid_frame, self._curr_frame[:] = self._video_source.read(self._ref_frame)
+            return True
+            
         else:
-            #~ start_time = get_time_s()        
             if self._raw_frame is None or self._scale_changed:
                 valid_frame, self._raw_frame = self._video_source.read()
             else:
                 valid_frame, self._raw_frame[:] = self._video_source.read()
             
-            #~ end_time = get_time_s()
+            #~ end_time = time.time()
             #~ print("Time to capture frame = ", end_time - start_time)
             
             if not valid_frame:
               return False
             
-            #~ start_time = get_time_s()
+            #~ start_time = time.time()
             if self._gray_frame is None or self._scale_changed:
                 self._gray_frame = convertColor(self._raw_frame, COLOR_BGR2GRAY).astype(int16)
             else:
                 self._gray_frame[:] = convertColor(self._raw_frame, COLOR_BGR2GRAY)
-            #~ end_time = get_time_s()
+            #~ end_time = time.time()
             #~ print("Time to convert to grayscale = ", end_time - start_time)
 
-            #~ start_time = get_time_s()
+            #~ start_time = time.time()
             if self._get_sizes or self._scale_changed:
                 self._get_sizes = False
                 self._scale_changed = False
@@ -510,10 +510,10 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                 self._tmp_frame = numpy.zeros((self._out_res, self._img_scaled_width))
                 
                 
-            #~ end_time = get_time_s()
+            #~ end_time = time.time()
             #~ print("Time to calculate sizes = ", end_time - start_time)
             
-            #~ start_time = get_time_s()
+            #~ start_time = time.time()
             if self._scale_img:
                 self._tmp_frame[:] = cv2.resize(self._gray_frame, (self._img_scaled_width, self._out_res), 
                                              interpolation=CV_INTER_NN)
@@ -522,8 +522,9 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             else:
                 self._curr_frame[:] = self._gray_frame[self._img_height_crop_u: self._img_height_crop_b, 
                                                     self._img_width_crop_l:  self._img_width_crop_r]
-            #~ end_time = get_time_s()
+            #~ end_time = time.time()
             #~ print("Time to scale frame = ", end_time - start_time)
+        
         
         return True
             
@@ -544,11 +545,11 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         #from generate_spikes.pyx (cython)
         if lists is not None:
           for spike_pack in lists:
-            start_time = get_time_s()
+            start_time = time.time()
             send_spikes(lbl, spike_pack, send_full_keys=False)
-            elapsed_time = get_time_s() - start_time
+            elapsed_time = time.time() - start_time
             if elapsed_time < max_time_s:
-              sleep_s(max_time_s - elapsed_time)
+              time.sleep(max_time_s - elapsed_time)
     
     
     
@@ -651,6 +652,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         data_mask = self._data_mask
         polarity = self._polarity_n
         spikes = self._spikes
+        threshold = self._threshold
         max_thresh = self._max_threshold
         min_thresh = self._min_threshold
         #~ lists = self._spikes_lists
@@ -665,7 +667,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         #from generate_spikes.pyx (cython)
         if self._output_type == ExternalDvsEmulatorDevice.OUTPUT_RATE:
           lists = make_spike_lists_rate(up_spks, dn_spks,
-                                        g_max,
+                                        g_max, threshold,
                                         up_down_shift, data_shift, data_mask,
                                         max_time_ms)
         
@@ -675,14 +677,14 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                                         up_down_shift, data_shift, data_mask,
                                         num_bins,
                                         max_time_ms,
-                                        min_thresh, max_thresh)
+                                        thresheshold, max_thresh)
           
         elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN:
           lists = make_spike_lists_time_bin(up_spks, dn_spks,
                                             g_max,
                                             up_down_shift, data_shift, data_mask,
                                             max_time_ms,
-                                            min_thresh, max_thresh,
+                                            threshold, max_thresh,
                                             num_bins,
                                             log2_table)
 
@@ -691,7 +693,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                                                 g_max,
                                                 up_down_shift, data_shift, data_mask,
                                                 max_time_ms,
-                                                min_thresh, max_thresh,
+                                                threshold, max_thresh,
                                                 num_bins,
                                                 log2_table)
         return lists

@@ -96,10 +96,6 @@ class VirtualCam():
 
     self.frame_prev_time = get_time()
     
-    self.lock = Lock()
-
-    #~ self.locking_thread = Thread(name="locking", target=self.frame_rate_constraint,
-                                 #~ args=(self.time_period,))
     self.frame_number = 0
     
     self.current_buffer = 0
@@ -174,7 +170,24 @@ class VirtualCam():
   def stop(self):
     self.running = False
 
+  def isOpened(self):
+    return True
+    
+  def get(self, prop):
+    if prop == CV_CAP_PROP_FRAME_WIDTH:
+      return self.width
+    elif prop == CV_CAP_PROP_FRAME_HEIGHT:
+      return self.height
+    elif prop == CV_CAP_PROP_FPS:
+      return self.fps
+    else:
+      return False
 
+  def set(self, prop):
+    return False
+
+  def release(self):
+    self.stop()
 
   def load_images(self, buffer_number):
     from_idx = self.buffer_start_idx
@@ -201,14 +214,10 @@ class VirtualCam():
     showing_img = self.showing_img
     move_image = self.move_image
     fps = self.fps
-    lock = self.lock
     num_images = self.total_images
     image_buffer = self.image_buffer[self.current_buffer]
     all_in_buffer = self.all_in_buffer
     
-    #~ while self.locked: #wait for frame rate constraint allows new image to be fetched
-      #~ pass
-
     start = get_time()
     run_time = start - self.on_off_start_time
     
@@ -217,7 +226,8 @@ class VirtualCam():
       if run_time >= inter_off_time:
         self.showing_img = True
         self.on_off_start_time = get_time()
-
+        self.frame_number = 0
+        
         self.current_image_idx += 1
         
         if self.current_image_idx >= num_images:
@@ -251,12 +261,6 @@ class VirtualCam():
     
 
     self.prev_time = get_time()
-    #~ print("time per read = %f"%(get_time() - start))
-    #~ lock.acquire()
-    #~ try:
-      #~ self.locked = True
-    #~ finally:
-      #~ lock.release()
     
     return True, self.current_image
 
