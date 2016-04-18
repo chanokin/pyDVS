@@ -677,7 +677,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                                         up_down_shift, data_shift, data_mask,
                                         num_bins,
                                         max_time_ms,
-                                        thresheshold, max_thresh)
+                                        threshold, max_thresh)
           
         elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN:
           lists = make_spike_lists_time_bin(up_spks, dn_spks,
