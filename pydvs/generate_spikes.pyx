@@ -1125,7 +1125,7 @@ def usaccade_image(numpy.ndarray[DTYPE_t, ndim=2] original,
     :returns moved:      Translated image
   """
   if frame_number%frames_per_usaccade != 0:
-    return original, center_x, center_y
+    return move_image(original, center_x, center_y, bg_gray), center_x, center_y
   
   numpy.random.seed(seed=numpy.uint32(time.time()*1000))
   center_x += numpy.random.randint(-max_delta, max_delta+1)

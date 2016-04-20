@@ -31,7 +31,7 @@ def DvsEmulatorDevice(n_neurons, machine_time_step, timescale_factor,
                       min_threshold= 6, max_threshold=168,
                       threshold_delta_down = 2, threshold_delta_up = 12,
                       output_type="TIME", num_bits_per_spike=4, 
-                      history_weight=0.99, save_spikes=None,
+                      history_weight=0.99, save_spikes=None,  run_time_ms=None,
                       local_port=19999,
                       database_notify_host=None, database_notify_port_num=None,
                       database_ack_port_num=None):
@@ -100,6 +100,7 @@ def DvsEmulatorDevice(n_neurons, machine_time_step, timescale_factor,
         threshold_delta_down=threshold_delta_down, threshold_delta_up=threshold_delta_up,
         output_type=output_type, num_bits_per_spike=num_bits_per_spike, 
         history_weight=history_weight, save_spikes=save_spikes,
+        run_time_ms=run_time_ms,
         local_port=local_port)
         
 

@@ -92,7 +92,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                  min_threshold=6, max_threshold=168,
                  threshold_delta_down = 2, threshold_delta_up = 12,
                  output_type="TIME", num_bits_per_spike=4,
-                 history_weight=0.99, save_spikes=None,
+                 history_weight=0.99, save_spikes=None, run_time_ms=None,
                  local_port=19876):
         """
         :param device_id: int for webcam modes, or string for video file
@@ -223,6 +223,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         
         self._history_weight = history_weight
         
+        self._run_time_ms = run_time_ms
         ################################################################
 
         if spinn_version == "2015.005":
@@ -291,7 +292,10 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         self._sender = sender
         
         
-        max_run_time_s = self.no_machine_time_steps/float(self.machine_time_step) + 0.1
+        if self._run_time_ms is None:
+            max_run_time_s = self.no_machine_time_steps/float(self.machine_time_step) - 0.5
+        else:
+            max_run_time_s = self._run_time_ms/1000.
         
         
         self.acquire_device()
@@ -357,10 +361,10 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         spikes_frame = self._spikes_frame
         cv2.namedWindow (label)
         spike_list = []
-        gen_times = []
-        compose_times = []
-        transform_times = []
-        ref_up_times = []
+        # gen_times = []
+        # compose_times = []
+        # transform_times = []
+        # ref_up_times = []
         start_time = 0.
         end_time   = 0.
         lists = None
@@ -370,26 +374,26 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             if image is None or not self._running:  
                 break
             
-            start_time = time.time()
+            # start_time = time.time()
             self.generate_spikes(image)
-            gen_times.append(time.time()-start_time)
+            # gen_times.append(time.time()-start_time)
             
-            start_time = time.time()
+            # start_time = time.time()
             self.update_reference()
-            ref_up_times.append(time.time()-start_time)
+            # ref_up_times.append(time.time()-start_time)
             
-            start_time = time.time()
+            # start_time = time.time()
             lists = self.transform_spikes()
-            transform_times.append(time.time() - start_time)
+            # transform_times.append(time.time() - start_time)
             
             spike_queue.put(lists)
             
             if self._save_spikes is not None:
                 spike_list.append(lists)
             
-            start_time = time.time()
+            # start_time = time.time()
             self.compose_output_frame()
-            compose_times.append(time.time()-start_time)
+            # compose_times.append(time.time()-start_time)
             
             
             cv2.imshow (label, spikes_frame)  
@@ -401,14 +405,14 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                 
             #continue                             
         
-        print("gen times")
-        print(numpy.array(gen_times).mean())
-        print("update ref times")
-        print(numpy.array(ref_up_times).mean())
-        print("transform times")
-        print(numpy.array(transform_times).mean())
-        print("compose times")
-        print(numpy.array(compose_times).mean())
+        # print("gen times")
+        # print(numpy.array(gen_times).mean())
+        # print("update ref times")
+        # print(numpy.array(ref_up_times).mean())
+        # print("transform times")
+        # print(numpy.array(transform_times).mean())
+        # print("compose times")
+        # print(numpy.array(compose_times).mean())
 
         cv2.destroyAllWindows()
 
