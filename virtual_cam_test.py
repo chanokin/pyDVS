@@ -33,7 +33,7 @@ fps = 90
 
 max_frame_time = 1./fps
 resolution=128
-behaviour = VirtualCam.BEHAVE_TRAVERSE
+behaviour = VirtualCam.BEHAVE_ATTENTION
 vcam = VirtualCam("./mnist/", fps=fps, resolution=resolution, behaviour=behaviour)
 valid_img = True
 img = numpy.zeros((resolution, resolution), dtype=uint8)

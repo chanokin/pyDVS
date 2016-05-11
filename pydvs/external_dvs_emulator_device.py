@@ -112,6 +112,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
            mode == ExternalDvsEmulatorDevice.MODE_32  or \
            mode == ExternalDvsEmulatorDevice.MODE_16:
             self._out_res = int(mode)
+            self._res_2x = self._out_res*2
 
         else:
             raise exceptions.SpynnakerException("the model does not "
@@ -360,6 +361,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         sender = self._sender
         spikes_frame = self._spikes_frame
         cv2.namedWindow (label)
+        res2x = self._res_2x
         spike_list = []
         # gen_times = []
         # compose_times = []
@@ -396,7 +398,8 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             # compose_times.append(time.time()-start_time)
             
             
-            cv2.imshow (label, spikes_frame)  
+            cv2.imshow( label, 
+                        cv2.resize(spikes_frame, (res2x, res2x)) )  
             
             if cv2.waitKey(1) & 0xFF == ord('q'):#\
                #or not sender.isAlive():
