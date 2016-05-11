@@ -38,7 +38,7 @@ class VirtualCam():
   BEHAVE_ATTENTION    = "ATTENTION"
   BEHAVE_TRAVERSE     = "TRAVERSE"
   BEHAVE_FADE         = "FADE"
-  
+  BEHAVE_NONE         = "NONE"
   IMAGE_TYPES = ["png", 'jpeg', 'jpg']
 
   def __init__(self, image_location, behaviour="SACCADE", fps=90, resolution=128,
@@ -99,7 +99,7 @@ class VirtualCam():
     self.frame_number = 0
     
     self.current_buffer = 0
-    self.buffer_size = 20
+    self.buffer_size = 10
     self.half_buffer_size = self.buffer_size//2
     self.all_in_buffer = self.total_images < self.buffer_size
     self.image_buffer = [ [], [] ]
@@ -110,8 +110,8 @@ class VirtualCam():
     else:
       for i in range(self.buffer_size):
         self.image_buffer[self.current_buffer].append( numpy.zeros(self.shape, dtype=DTYPE) )
-        self.image_buffer[int(not self.current_buffer)].append( numpy.zeros(self.shape, 
-                                                                            dtype=DTYPE) )
+        self.image_buffer[int(not self.current_buffer)].append( \
+                                          numpy.zeros(self.shape, dtype=DTYPE) )
     
     self.buffer_start_idx = 0
     self.load_images(self.current_buffer)
@@ -217,50 +217,63 @@ class VirtualCam():
     num_images = self.total_images
     image_buffer = self.image_buffer[self.current_buffer]
     all_in_buffer = self.all_in_buffer
+    buffer_size = self.buffer_size
     
     start = get_time()
     run_time = start - self.on_off_start_time
-    
-    if not self.showing_img:
-
-      if run_time >= inter_off_time:
-        self.showing_img = True
-        self.on_off_start_time = get_time()
-        self.frame_number = 0
-        
-        self.current_image_idx += 1
-        
-        if self.current_image_idx >= num_images:
-          self.current_image_idx = 0
-          if not all_in_buffer:
-            self.current_buffer = int(not self.current_buffer)
-            image_buffer = self.image_buffer[self.current_buffer]
+    if behaviour == VirtualCam.BEHAVE_NONE:
+      self.current_image = self.image_buffer[self.current_buffer]\
+                                            [self.current_image_idx]
+      self.current_image_idx += 1
+      if self.current_image_idx == num_images or\
+          self.current_image_idx == buffer_size:
+        self.current_image_idx = 0
+        if not all_in_buffer:
+          self.current_buffer = int(not self.current_buffer)
           
-        self.current_image[:] = image_buffer[self.current_image_idx]
-        self.original_image[:] = image_buffer[self.current_image_idx]
-
-        if behaviour == traverse or behaviour == fade:
-          self.current_image[:] = background
-        else:
-          self.center_x = 0
-          self.center_y = 0
-          
-      else:
-        self.current_image[:] = background
-
     else:
-      if run_time >= image_on_time:
-        self.showing_img = False
-        self.on_off_start_time = get_time()
-        self.frame_number = 0
+      if not self.showing_img:
+
+        if run_time >= inter_off_time:
+          self.showing_img = True
+          self.on_off_start_time = get_time()
+          self.frame_number = 0
+          
+          self.current_image_idx += 1
+          
+          if self.current_image_idx == num_images or\
+            self.current_image_idx == buffer_size:
+            self.current_image_idx = 0
+            if not all_in_buffer:
+              self.current_buffer = int(not self.current_buffer)
+              image_buffer = self.image_buffer[self.current_buffer]
+            
+          self.current_image[:] = image_buffer[self.current_image_idx%buffer_size]
+          self.original_image[:] = self.current_image
+
+          if behaviour == traverse or behaviour == fade:
+            self.current_image[:] = background
+          else:
+            self.center_x = 0
+            self.center_y = 0
+            
+        else:
+          self.current_image[:] = background
+
       else:
-        move_image(ref)
+        if run_time >= image_on_time:
+          self.showing_img = False
+          self.on_off_start_time = get_time()
+          self.frame_number = 0
+        else:
+          
+          move_image(ref)
+        
+      self.frame_number += 1
+
       
-    self.frame_number += 1
 
-    
-
-    self.prev_time = get_time()
+      self.prev_time = get_time()
     
     return True, self.current_image
 
@@ -300,14 +313,16 @@ class VirtualCam():
         
         self.scaled_width = int(float(img_width*height)/img_height)
         scaled_width = self.scaled_width
+        print(img_width, width, scaled_width)
         
         diff = scaled_width - width
         from_col = diff//2
-        to_col = self.from_col + self.width
-        
+        to_col = from_col + width
+        from_row = 0
+        to_row = 0        
         self.tmp_image = resize(gray, (scaled_width, height), interpolation=CV_INTER_NN)
-                                    
-        original[:] = gray[:, from_col:to_col]
+                 
+        original[:] = self.tmp_image[:, from_col:to_col]
       
       self.first_run = False
       self.from_col = from_col; self.to_col = to_col
@@ -327,8 +342,8 @@ class VirtualCam():
         original[from_row:to_row, from_col:to_col] = gray
 
       else:
-        tmp_image[:] = resize(gray, (scaled_width, height), interpolation=CV_INTER_NN)
-        original[:] = tmp_image[:, from_col:to_col]
+        self.tmp_image[:] = resize(gray, (scaled_width, height), interpolation=CV_INTER_NN)
+        original[:] = self.tmp_image[:, from_col:to_col]
 
     return original.copy()
 
@@ -389,7 +404,11 @@ class VirtualCam():
               
       elif os.path.isdir(images): # or a directory?
         for extension in self.IMAGE_TYPES:
-          for img in glob.glob(os.path.join(images, "*.%s"%extension)):
+          image_list = glob.glob(os.path.join(images, "*.%s"%extension))
+          if image_list is None:
+            continue
+          image_list.sort()
+          for img in image_list:
             if os.path.isfile(img):
               imgs.append(img)
               self.total_images += 1
