@@ -752,8 +752,8 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
       spike_idx = min(max_spikes-1, val)
         
     else:
-      spike_key = spike_to_key(neg_spikes[ROWS, pix_idx], \
-                               neg_spikes[COLS, pix_idx], \
+      spike_key = spike_to_key(neg_spikes[ROWS, pix_idx - len_pos], \
+                               neg_spikes[COLS, pix_idx - len_pos], \
                                flag_shift, data_shift, data_mask,\
                                is_pos_spike = 0)
 
