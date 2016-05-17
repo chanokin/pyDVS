@@ -210,8 +210,8 @@ inh_coords = generate_inh_coords(width, height, inh_width)
 # -------------------------------------------------------------------- #
 # camera/frequency related                                             #
 
-#video_dev = cv2.VideoCapture(0) # webcam
-video_dev = cv2.VideoCapture('./120fps HFR Sample.mp4') # webcam
+video_dev = cv2.VideoCapture(0) # webcam
+#~ video_dev = cv2.VideoCapture('./120fps HFR Sample.mp4') # webcam
 
 #ps3 eyetoy can do 125fps
 try:

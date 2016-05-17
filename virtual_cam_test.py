@@ -34,24 +34,24 @@ fps = 90
 max_frame_time = 1./fps
 resolution=128
 behaviour = VirtualCam.BEHAVE_ATTENTION
-vcam = VirtualCam("./mnist/", fps=fps, resolution=resolution, behaviour=behaviour)
+vcam = VirtualCam("./mnist2/", fps=fps, resolution=resolution, behaviour=behaviour)
 valid_img = True
 img = numpy.zeros((resolution, resolution), dtype=uint8)
 ref = numpy.zeros((resolution, resolution), dtype=int16)
-print(vcam.image_filenames)
+# print(vcam.image_filenames)
 frame_count = 0
 start_time = time.time()
 prev_time = time.time()
 wait_time = 0.
 while True:
-  
+
   valid_img, img[:] = vcam.read(ref)
   #ref[:] = img
 
   cv2.imshow("label", img)
-  
+
   key = cv2.waitKey(1) & 0xFF
-  
+
   if key == ord('q') or key == ord('Q'):
     break
 
@@ -60,13 +60,13 @@ while True:
   wait_time = max_frame_time - (now - prev_time)
   if wait_time > 0:
     time.sleep(wait_time)
-  
+
   if now - start_time >= 1.:
     print("FPS: %d"%frame_count)
     frame_count = 0
     start_time = now
-  
+
   prev_time = time.time()
-  
+
 
 vcam.stop()
