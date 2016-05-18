@@ -29,12 +29,15 @@ from pydvs.virtual_cam import VirtualCam
 #BEHAVE_TRAVERSE     = "TRAVERSE"
 #BEHAVE_FADE         = "FADE"
 
-fps = 90
+fps = 120
 
 max_frame_time = 1./fps
-resolution=128
+resolution=64
 behaviour = VirtualCam.BEHAVE_ATTENTION
-vcam = VirtualCam("./mnist2/", fps=fps, resolution=resolution, behaviour=behaviour)
+on_ms = 1000.
+off_ms = on_ms*2.
+vcam = VirtualCam("./mnist/", fps=fps, resolution=resolution, behaviour=behaviour,
+                  image_on_time_ms = on_ms, inter_off_time_ms = off_ms)
 valid_img = True
 img = numpy.zeros((resolution, resolution), dtype=uint8)
 ref = numpy.zeros((resolution, resolution), dtype=int16)

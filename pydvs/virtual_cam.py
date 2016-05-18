@@ -3,7 +3,7 @@ import os
 import glob
 from threading import Thread, Lock
 from time import time as get_time, sleep
-
+import copy
 import numpy
 from numpy import int16, uint16, uint8, float16, log2
 DTYPE = int16
@@ -30,7 +30,7 @@ from generate_spikes import *
 
 
 
-
+labels = "ABCDEFGHIJ"
 
 class VirtualCam():
 
@@ -89,6 +89,7 @@ class VirtualCam():
 
     self.gray_image = None
     self.tmp_image  = None
+    self.tmp_orig = numpy.zeros(self.shape, dtype=DTYPE)
     self.original_image = numpy.zeros(self.shape, dtype=DTYPE)
     self.current_image  = numpy.zeros(self.shape, dtype=DTYPE)
 
@@ -115,7 +116,7 @@ class VirtualCam():
                                           numpy.zeros(self.shape, dtype=DTYPE) )
 
     self.buffer_start_idx = 0
-    self.load_images(self.current_buffer)
+    self.load_images(self.current_buffer, self.global_image_idx, self.current_image_idx)
 
     self.current_image[:] = self.image_buffer[self.current_buffer][0]
 
@@ -157,12 +158,16 @@ class VirtualCam():
 
 
   def handle_double_buffering(self):
-    half_buffer_size = self.half_buffer_size
 
     while self.running:
-      if self.current_image_idx == half_buffer_size:
-        self.load_images(int(not self.current_buffer))
+      curr_idx_copy = copy.copy(self.current_image_idx)
+      global_idx_copy = copy.copy(self.global_image_idx)
+      curr_buff_copy = copy.copy(self.current_buffer)
+      if curr_idx_copy == 1:
+        while curr_idx_copy == self.current_image_idx and self.running:
+          pass
 
+        self.load_images(int(not curr_buff_copy), global_idx_copy, curr_idx_copy)
 
 
   def __del__(self):
@@ -190,18 +195,29 @@ class VirtualCam():
   def release(self):
     self.stop()
 
-  def load_images(self, buffer_number):
-    from_idx = self.global_image_idx
-    to_idx = min(from_idx + self.buffer_size, self.total_images)
-    print("in load_images, from %s to %s"%(from_idx, to_idx))
+  def load_images(self, buffer_number, global_idx, curr_idx):
+    half_buffer_size = self.half_buffer_size
+    num_imgs = self.total_images
+
+    # print("in load_images")
+    # print("\tglobal idx %s, current idx %s"%(self.global_image_idx, self.current_image_idx))
+    # print("\tCOPIES global idx %s, current idx %s"%(global_idx, curr_idx))
+    if global_idx == 0 and curr_idx == 0:
+      from_idx = 0
+    else:
+      from_idx = min(global_idx + self.buffer_size - 1, num_imgs)
+      from_idx = 0 if from_idx == num_imgs else from_idx
+    to_idx = min(from_idx + self.buffer_size, num_imgs)
+    # print("\tbuffer %s, from %s to %s"%(buffer_number, from_idx, to_idx))
     buff_idx = 0
     for idx in range(from_idx, to_idx):
-      if idx > self.total_images:
-        idx = idx - self.total_images
+    #   print("\tcurrent buffer %s"%(self.current_buffer))
+    #   print("\tfilling buffer %s, buff_idx %s <-> img idx %s"%(buffer_number, buff_idx, idx))
+
       self.image_buffer[buffer_number][buff_idx][:] = self.grab_image(idx)
       buff_idx += 1
 
-    self.buffer_start_idx = idx
+
 
 
 
@@ -248,11 +264,11 @@ class VirtualCam():
           self.showing_img = True
           self.on_off_start_time = get_time()
 
-          self.current_image[:] = self.image_buffer[self.current_buffer][self.current_image_idx]
-          self.original_image[:] = self.current_image
-          print("buffer %s, index %s, frame %s, global idx %s"%\
-                (self.current_buffer, self.current_image_idx, self.frame_number,
-                 self.global_image_idx))
+        #   self.current_image[:] = self.image_buffer[self.current_buffer][self.current_image_idx]
+        #   self.original_image[:] = self.current_image
+        #   print("buffer %s, index %s, frame %s, global idx %s"%\
+        #         (self.current_buffer, self.current_image_idx, self.frame_number,
+        #          self.global_image_idx))
 
 
           self.current_image_idx += 1
@@ -271,6 +287,9 @@ class VirtualCam():
 
           self.frame_number = 0
 
+          self.original_image[:] = self.image_buffer[self.current_buffer][self.current_image_idx]
+          self.current_image[:] = self.original_image
+
           if behaviour == traverse or behaviour == fade:
             self.current_image[:] = background
           else:
@@ -287,7 +306,7 @@ class VirtualCam():
           self.frame_number = 0
         else:
 
-          move_image(ref)
+          self.move_image(ref)
 
       self.frame_number += 1
 
@@ -303,8 +322,8 @@ class VirtualCam():
     first_run = self.first_run
     filename = self.image_filenames[idx]
     width = self.width; height = self.height
-    original = self.original_image
-
+    # original = self.original_image
+    original = self.tmp_orig
     if first_run:
       self.gray_image = imread(filename, CV_LOAD_IMAGE_GRAYSCALE)
       gray = self.gray_image
