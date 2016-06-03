@@ -1,5 +1,6 @@
 from __future__ import print_function
 import os
+import inspect
 import glob
 from threading import Thread, Lock
 from time import time as get_time, sleep
@@ -30,7 +31,7 @@ from generate_spikes import *
 
 
 
-labels = "ABCDEFGHIJ"
+
 
 class VirtualCam():
 
@@ -44,9 +45,13 @@ class VirtualCam():
   def __init__(self, image_location, behaviour="SACCADE", fps=90, resolution=128,
                image_on_time_ms = 1000, inter_off_time_ms = 100,
                max_saccade_distance=1, frames_per_microsaccade=1, frames_per_saccade=29,
-
+               start_img_idx=0, max_num_images = 60000, max_cycles=3, fade_with_mask=True,
                background_gray=0):
 
+    self.max_cycles = max_cycles
+    self.num_cycles = 0
+    self.max_num_images = max_num_images
+    self.start_img_idx = start_img_idx
     self.total_images = 0
     self.image_filenames = self.get_images_paths(image_location)
 
@@ -101,7 +106,7 @@ class VirtualCam():
     self.frame_number = 0
 
     self.current_buffer = 0
-    self.buffer_size = 6
+    self.buffer_size = 20
     self.half_buffer_size = self.buffer_size//2
     self.all_in_buffer = self.total_images <= self.buffer_size
     self.image_buffer = [ [], [] ]
@@ -119,6 +124,14 @@ class VirtualCam():
     self.load_images(self.current_buffer, self.global_image_idx, self.current_image_idx)
 
     self.current_image[:] = self.image_buffer[self.current_buffer][0]
+
+    self.fade_with_mask = fade_with_mask
+    if fade_with_mask:
+        to_per_unit = 1./255.
+        dirname = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+        f = os.path.join(dirname, "fading_mask.png")
+        self.fade_mask = imread(f, CV_LOAD_IMAGE_GRAYSCALE)*to_per_unit
+        
 
     if self.behaviour == VirtualCam.BEHAVE_FADE or \
        self.behaviour == VirtualCam.BEHAVE_TRAVERSE:
@@ -258,6 +271,11 @@ class VirtualCam():
 
 
     else:
+      if self.num_cycles == self.max_cycles:
+        self.current_image[:] = background
+        self.original_image[:] = background
+        return True, self.current_image
+
       if not self.showing_img:
 
         if run_time >= inter_off_time:
@@ -275,6 +293,11 @@ class VirtualCam():
           self.global_image_idx += 1
 
           if self.global_image_idx == num_images:
+            self.num_cycles += 1
+            if self.num_cycles == self.max_cycles:
+                self.current_image[:] = background
+                self.original_image[:] = background
+                return True, self.current_image
             self.current_image_idx = 0
             self.global_image_idx  = 0
             if not all_in_buffer:
@@ -307,7 +330,9 @@ class VirtualCam():
         else:
 
           self.move_image(ref)
-
+          if self.fade_with_mask:
+              self.current_image[:] = mask_image(self.current_image,
+                                                 self.fade_mask)
       self.frame_number += 1
 
 
@@ -442,6 +467,7 @@ class VirtualCam():
         self.total_images += 1
 
       elif os.path.isdir(images): # or a directory?
+        img_idx = 0
         for extension in self.IMAGE_TYPES:
           image_list = glob.glob(os.path.join(images, "*.%s"%extension))
           if image_list is None:
@@ -449,8 +475,18 @@ class VirtualCam():
           image_list.sort()
           for img in image_list:
             if os.path.isfile(img):
-              imgs.append(img)
-              self.total_images += 1
+
+              if img_idx < self.start_img_idx:
+                img_idx += 1
+                continue
+              else:
+                imgs.append(img)
+                self.total_images += 1
+
+            if self.total_images == self.max_num_images:
+                return imgs
+            img_idx += 1
+
 
     if len(imgs) == 0:
         raise Exception("No images loaded! ")

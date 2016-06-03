@@ -59,7 +59,7 @@ cdef key_to_spike(DTYPE_U16_t key,
     cdef DTYPE_t col  = key & data_mask
     cdef DTYPE_t sign = 0
 
-    if ((key >> flag_shift) & 1) == 1:
+    if ((key >> flag_shift) & 1) == 0:
       sign = 1
     else:
       sign = -1
