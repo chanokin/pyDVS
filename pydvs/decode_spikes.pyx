@@ -43,7 +43,7 @@ DEF ROWS = 0
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-cdef key_to_spike(DTYPE_U16_t key,
+def key_to_spike(DTYPE_U16_t key,
                   DTYPE_U8_t flag_shift, DTYPE_U8_t data_shift, 
                   DTYPE_U8_t data_mask):
     """

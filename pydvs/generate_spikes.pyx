@@ -918,7 +918,8 @@ def make_spike_lists_time(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                             num_bins - 1),
                         0 )
 
-    time_idx = num_thresh # num_bins - num_thresh - 1
+#     time_idx = num_thresh 
+    time_idx = num_bins - num_thresh - 1
 #~     print "num_bins(%s), num_thresh (%s), time_idx (%s)"%(num_bins, num_thresh, time_idx)
     list_of_lists[time_idx].append( spike_key )
 
@@ -1071,7 +1072,7 @@ def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
       for i in indices:
         if i > num_bins:
           i = num_bins
-        list_of_lists[num_bins - i].append(spike_key)
+        list_of_lists[i - 1].append(spike_key)
 
     else:
       neg_idx = pix_idx - len_pos
@@ -1091,7 +1092,7 @@ def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
         if i > num_bins:
           i = num_bins
 
-        list_of_lists[num_bins - i].append(spike_key)
+        list_of_lists[i - 1].append(spike_key)
 
   return list_of_lists
 
