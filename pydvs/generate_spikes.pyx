@@ -293,7 +293,7 @@ def update_reference_rate_adpt(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
 
   threshold += update
 
-  update = numpy.logical_and(spikes == 0, threshold > min_threshold).astype(dtype=DTYPE)*\
+  update = numpy.logical_and(spikes != 0, threshold > min_threshold).astype(dtype=DTYPE)*\
                                                                      down_threshold_change
   threshold -= update
 
@@ -1097,6 +1097,8 @@ def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
   return list_of_lists
 
 
+#######################################################################################
+
 
 def generate_log2_table(max_active_bits, bit_resolution):
   """Create a look-up table for the possible values in the range (0, 2^bit_resolution)
@@ -1113,7 +1115,9 @@ def generate_log2_table(max_active_bits, bit_resolution):
 
   return log2_table
 
+
 #######################################################################################
+
 
 def mask_image(numpy.ndarray[DTYPE_t, ndim=2] original,
                numpy.ndarray[DTYPE_FLOAT_t, ndim=2] mask):
