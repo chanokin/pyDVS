@@ -81,8 +81,9 @@ num_cycles = 1
 frames_per_saccade = cam_fps/3 - 1
 frames_per_microsaccade = 2
 polarity = POLARITY_DICT[RECTIFIED_POLARITY]
+polarity = POLARITY_DICT[MERGED_POLARITY]
 output_type = OUTPUT_TIME
-history_weight = 1.0
+history_weight = 1.
 behaviour = VirtualCam.BEHAVE_MICROSACCADE
 
 data_shift = uint8(np.log2(cam_w))
@@ -90,7 +91,7 @@ flag_shift = uint8(2*data_shift)
 data_mask  = uint8(cam_w - 1)
 
 inh_width = 2
-is_inh_on = True
+is_inh_on = False
 inh_coords = generate_inh_coords(cam_w, cam_w, inh_width)
 
 

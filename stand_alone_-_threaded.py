@@ -203,7 +203,7 @@ max_diff = 0
 # inhibition related                                                   #
 
 inh_width = 2
-is_inh_on = True
+is_inh_on = False
 inh_coords = generate_inh_coords(width, height, inh_width)
 
 
