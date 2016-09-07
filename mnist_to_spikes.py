@@ -52,9 +52,11 @@ def wait_ms(prev_time_ms, wait_time_ms):
         t = time.time()*1000. - prev_time_ms
         
 def get_filenames(img_dir):
+    print("grabbing images from '%s'"%(img_dir))
     imgs = []
     img_idx = 0
     image_list = glob.glob(os.path.join(img_dir, "*.png"))
+
     image_list.sort()
     for img in image_list:
         if os.path.isfile(img):
@@ -68,7 +70,7 @@ orig_w = 28
 cam_w = 32
 cam_fps = 30
 frame_time_ms = np.round(1000./cam_fps)
-frames_per_image = 6
+frames_per_image = 90
 on_time_ms = frame_time_ms*frames_per_image
 off_time_ms = on_time_ms*3
 frames_off = int(off_time_ms/cam_fps)
@@ -120,7 +122,7 @@ lists = []
 write_buff = []
 prev_ms = time.time()*1000.
 start_ms = time.time()*1000.
-image_paths = get_filenames('../../../%s'%(setname))
+image_paths = get_filenames('./mnist/%s'%(setname))
 cx = 0
 cy = 0
 max_dist = 1
@@ -129,6 +131,8 @@ bg_gray = 0
 filename = ""
 fade_mask = imread("fading_mask.png", CV_LOAD_IMAGE_GRAYSCALE)
 fade_mask = numpy.float64(fade_mask/(255.))
+num_images = len(image_paths)
+print("number of images found %s"%(num_images))
 for img_idx in range(num_images):
     filename = image_paths[img_idx]
     orig_img[:] = imread(filename, CV_LOAD_IMAGE_GRAYSCALE)
@@ -148,7 +152,7 @@ for img_idx in range(num_images):
                                              frames_per_microsaccade,
                                              max_dist, cx, cy, bg_gray)
         
-        curr *= fade_mask
+        curr = int16(curr*fade_mask)
         
         diff[:], abs_diff[:], spikes[:] = thresholded_difference(curr, ref, thresh)
         
@@ -174,7 +178,8 @@ for img_idx in range(num_images):
 
         spk_img[:] = render_frame(spikes, curr, cam_w, cam_w, polarity)
         cv2.imshow("fig", spk_img)
-        cv2.waitKey(1)
+        cv2.waitKey(10)
+        print("frame %s"%img_on_frame)
         t_idx = 0
         for spk_list in lists:
 
