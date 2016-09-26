@@ -126,21 +126,19 @@ def make_spikes_lists(output_type, pos, neg, max_diff, \
 
 
 
-# setname = "t10k"
-setname = "train"
-orig_w = 28
+
+orig_w = 32
 cam_w = 32
 # cam_w = 28
-cam_fps = 100
+cam_fps = 30
 frame_time_ms = np.round(1000./cam_fps)
 
-frames_per_image = 10
+frames_per_image = 1
 on_time_ms = frame_time_ms*frames_per_image
-off_time_ms = on_time_ms*3
-frames_off = int(off_time_ms/cam_fps)
+
 img_idx = 1
 start_img_idx = 0
-num_images = 60000 if setname == 'train' else 10000
+
 num_cycles = 1
 frames_per_saccade = cam_fps/3 - 1
 frames_per_microsaccade = 1
@@ -152,7 +150,7 @@ output_type = OUTPUT_RATE
 if output_type == OUTPUT_TIME or output_type == OUTPUT_RATE:
     num_bins = np.floor(frame_time_ms)
 else:
-    num_bins = 5.
+    num_bins = 8.
 
 t_bin_ms = frame_time_ms/num_bins
 print("cam_fps, frame_time_ms, num_bins, t_bin_ms")
@@ -170,25 +168,27 @@ data_shift = uint8(np.log2(cam_w))
 flag_shift = uint8(2*data_shift)
 data_mask  = uint8(cam_w - 1)
 
-num_spikes = 1
-log2_table = generate_log2_table(num_spikes, num_bins)[0]
+# num_spikes = 1
+# log2_table = generate_log2_table(num_spikes, num_bins)[0]
+# print("after generate_log2_table")
+log2_table = None
 
 inh_width = 2
 is_inh_on = False
 inh_coords = generate_inh_coords(cam_w, cam_w, inh_width)
 
+print("after generate_inh_coords")
+
 thresh = int( (2**8 - 1)*0.05 )
 
-dir_name = "./mnist_spikes/mnist_behave_%s_pol_%s_enc_%s_thresh_%d_hist_%d_inh_%s___%d_frames_at_%dfps_%dx%d_res_spikes"%\
-            (behaviour, polarity_name, output_type, thresh, int(history_weight*100), \
-             is_inh_on, frames_per_image, cam_fps, cam_w, cam_w)
+dir_name = "./moving_bar_spikes"
 
 print(dir_name)
 
 if not os.path.exists(dir_name):
     os.makedirs(dir_name)
 
-dir_name = "%s/%s"%(dir_name, setname)
+dir_name = "%s/%dfps"%(dir_name, cam_fps)
 
 if not os.path.exists(dir_name):
     os.makedirs(dir_name)
@@ -197,8 +197,10 @@ filelist = glob.glob("%s/*.txt"%(dir_name))
 for f in filelist:
     os.remove(f)
 
-spk_fname = "%s/mnist__img_%%05d.txt"%\
-            (dir_name)
+spk_fname = "spikes_pol_%s_enc_%s_thresh_%d_hist_%d_inh_%s___%d_frames_at_%dfps_%dx%d_res_spikes.txt"%\
+            (polarity_name, output_type, thresh, int(history_weight*100), \
+             is_inh_on, frames_per_image, cam_fps, cam_w, cam_w)
+
 
 orig_img = np.zeros((orig_w, orig_w), dtype=int16)
 padd_img = np.zeros((cam_w, cam_w), dtype=int16)
@@ -225,7 +227,8 @@ lists = []
 write_buff = []
 prev_ms = time.time()*1000.
 start_ms = time.time()*1000.
-image_paths = get_filenames('../../../%s'%(setname))
+image_paths = get_filenames('./dmb_dx_1px')
+num_images = len(image_paths)
 cx = 0
 cy = 0
 bg_gray = 0
@@ -233,84 +236,63 @@ filename = ""
 fade_mask = imread("pydvs/fading_mask.png", CV_LOAD_IMAGE_GRAYSCALE)
 fade_mask = resize(fade_mask, (cam_w, cam_w))
 fade_mask = numpy.float64(fade_mask/(255.))
+ref[:] = ref_start
 
 for img_idx in range(num_images):
+    print(img_idx)
     filename = image_paths[img_idx]
     orig_img[:] = imread(filename, CV_LOAD_IMAGE_GRAYSCALE)
     padd_img[:] = 0
     padd_img[frm:to, frm:to] = orig_img 
-    ref[:] = ref_start
-    # padd_img *= fade_mask
-    cx = 0
-    cy = 0
-    t = 0
-    for img_on_frame in range(frames_per_image):
-        
-        if img_on_frame == 0:
-            curr[:] = padd_img
-        else:
-            curr[:], cx, cy = usaccade_image(padd_img, img_on_frame, 
-                                             frames_per_microsaccade,
-                                             max_dist, cx, cy, bg_gray)
+    curr = padd_img
 
-        if abs(cx) > 1:
-            cx = 0
-        elif abs(cy) > 1:
-            cy = 0
-        
-        curr *= fade_mask
-        
-        diff[:], abs_diff[:], spikes[:] = thresholded_difference(curr, ref, thresh)
-        
-        if is_inh_on:
-            spikes[:] = local_inhibition(spikes, abs_diff, inh_coords, 
-                                         cam_w, cam_w, inh_width)
-
-
-        ref[:] = update_ref(output_type, abs_diff, spikes, ref, thresh, frame_time_ms, \
-                            num_bins, history_weight, log2_table)
-
-        neg, pos, max_diff = split_spikes(spikes, abs_diff, polarity)
-
-        lists[:] = []
-        
-        lists[:] = make_spikes_lists(output_type, pos, neg, max_diff,
-                                     flag_shift, data_shift, data_mask,
-                                     frame_time_ms,
-                                     thresh,
-                                     num_bins, log2_table)
-
-        spk_img[:] = render_frame(spikes, curr, cam_w, cam_w, polarity)
-        cv2.imshow("fig", spk_img)
-        cv2.waitKey(1)
-        t_idx = 0
-        
-        for spk_list in lists:
-            # print("--------------------------------------------", t_idx)
-            for spk in spk_list:
-                # print(t, t_idx)
-                spk_txt = "%s %f"%(spk, t + t_idx)
-                # print(spk_txt)
-                write_buff.append(spk_txt)
-          
-            t_idx += t_bin_ms
-               
-        t += frame_time_ms
-
-        # print("img %d, time %s, sim time %s"%(img_idx, prev_ms - start_ms, t))
-        
-
-    outf = open(spk_fname%img_idx, "w")
-    outf.write("\n".join(write_buff))
-    outf.close()
-    write_buff[:] = []
-
-    if (img_idx + 1)%100 == 0:
-      print("MNIST %s set: image %s"%(setname, img_idx+1))
-
-
-
+    curr *= fade_mask
     
-    # sys.exit(0)
+    diff[:], abs_diff[:], spikes[:] = thresholded_difference(curr, ref, thresh)
+    
+    if is_inh_on:
+        spikes[:] = local_inhibition(spikes, abs_diff, inh_coords, 
+                                     cam_w, cam_w, inh_width)
+
+
+    ref[:] = update_ref(output_type, abs_diff, spikes, ref, thresh, frame_time_ms, \
+                        num_bins, history_weight, log2_table)
+
+    neg, pos, max_diff = split_spikes(spikes, abs_diff, polarity)
+
+    lists[:] = []
+    
+    lists[:] = make_spikes_lists(output_type, pos, neg, max_diff,
+                                 flag_shift, data_shift, data_mask,
+                                 frame_time_ms,
+                                 thresh,
+                                 num_bins, log2_table)
+
+    spk_img[:] = render_frame(spikes, curr, cam_w, cam_w, polarity)
+    cv2.imshow("fig", spk_img)
+    cv2.waitKey(10)
+    t_idx = 0
+    
+    for spk_list in lists:
+        # print("--------------------------------------------", t_idx)
+        for spk in spk_list:
+            # print(t, t_idx)
+            spk_txt = "%s %f"%(spk, t + t_idx)
+            # print(spk_txt)
+            write_buff.append(spk_txt)
+      
+        t_idx += t_bin_ms
+           
+    t += frame_time_ms
+
+    # print("img %d, time %s, sim time %s"%(img_idx, prev_ms - start_ms, t))
+    
+
+outf = open(os.path.join(dir_name, spk_fname), "w")
+outf.write("\n".join(write_buff))
+outf.close()
+write_buff[:] = []
+
+# sys.exit(0)
 
 print("done converting images!!!")
