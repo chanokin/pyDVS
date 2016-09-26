@@ -1233,7 +1233,7 @@ def usaccade_image(numpy.ndarray[DTYPE_t, ndim=2] original,
   if frame_number%frames_per_usaccade != 0:
     return move_image(original, center_x, center_y, bg_gray), center_x, center_y
 
-  numpy.random.seed(seed=numpy.uint32(time.time()*1000000))
+  numpy.random.seed(seed=numpy.uint32(time.time()*10000000000))
   center_x += numpy.random.randint(-max_delta, max_delta+1)
   center_y += numpy.random.randint(-max_delta, max_delta+1)
 
