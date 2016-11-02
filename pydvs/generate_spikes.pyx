@@ -288,16 +288,13 @@ def update_reference_rate_adpt(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
 
   ref_frame = DTYPE(history_weight*ref_frame) + num_spikes*spikes*min_threshold
 
-  update = numpy.logical_and(spikes != 0, threshold < max_threshold).astype(dtype=DTYPE)*\
-                                                                       up_threshold_change
-
+  update = (spikes != 0).astype(dtype=DTYPE)*up_threshold_change
   threshold += update
 
-  update = numpy.logical_and(spikes != 0, threshold > min_threshold).astype(dtype=DTYPE)*\
-                                                                     down_threshold_change
+  update = (spikes == 0).astype(dtype=DTYPE)*down_threshold_change
   threshold -= update
 
-  return numpy.clip(ref_frame, 0, 255), threshold
+  return numpy.clip(ref_frame, 0, 255), numpy.clip(threshold, min_threshold, max_threshold)
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -760,19 +757,23 @@ cdef DTYPE_t spike_to_key(DTYPE_t row, DTYPE_t col,
                            or negative
       :returns encoded row/col/pos_or_neg
 
-      The output format is: [up|down][row][col]
+      The output format is: [col][row][up|down]
     """
     
     cdef DTYPE_U16_t d = 0
 
     #up/down bit
-    if not is_pos_spike:
-        d = d | 1 << flag_shift
+    if is_pos_spike:
+#         d = d | 1 << flag_shift
+        d = d | 1
+
+    # col bits
+#     d = d | (col)# & data_mask)
+    d = d | (row << 1)# & data_mask)
 
     # row bits
-    d = d | (row & data_mask) <<  data_shift
-    # col bits
-    d = d | (col & data_mask)
+#     d = d | (row & data_mask) <<  data_shift
+    d = d | (col << (data_shift + 1))
 
     return d
 
@@ -821,14 +822,14 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
 
     if pix_idx < len_pos:
       spike_key = grab_spike_key(pos_spikes[ROWS, pix_idx], \
-                                   pos_spikes[COLS, pix_idx], \
-                                   flag_shift, data_shift, data_mask,\
-                                   is_pos_spike = 1,
-                                   key_coding=key_coding)
-          
-          
+                                 pos_spikes[COLS, pix_idx], \
+                                 flag_shift, data_shift, data_mask,\
+                                 is_pos_spike = 1,
+                                 key_coding=key_coding)
+
       val = pos_spikes[VALS, pix_idx]/threshold
-      spike_idx = min(max_spikes-1, val)
+      val = (max_spikes - 1) - val
+      spike_idx = max(0, val)
 
     else:
       neg_idx = pix_idx - len_pos
@@ -839,8 +840,9 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                  key_coding=key_coding)
 
       val = neg_spikes[VALS, neg_idx]/threshold
+      val = (max_spikes - 1) - val
 #~       print("neg rate spikes val, key", val, spike_key)
-      spike_idx = min(max_spikes-1, val)
+      spike_idx = max(0, val)
       
     for list_idx in range(spike_idx):
       list_of_lists[list_idx].append(spike_key)
