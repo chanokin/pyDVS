@@ -1,16 +1,24 @@
-## A Cython-based Dynamic Vision Sensor (DVS) emulator. It can be used within a Python environment as demostrated in the various test files.
+## A Cython-based Dynamic Vision Sensor (DVS) emulator. It can be used within a Python environment as demonstrated in the various test files.
 
 
 A DVS is a camera-like sensor which emits per-pixel asynchronous Address-Event Representation (AER) packets. These are originated due to an intensity level change has reached a certain threshold. 
 
 This project emulates this behaviour using commodity hardware, that is a regular PC and camera. Modifications to the default behaviour where added, mainly: encoding of values using time, local inhibition and dynamic thresholds.
 
-
+This is a fork of the original [pyDVS](https://github.com/chanokin/pyDVS) by Garibaldi Pineda-Garcia  
+This version has been ported to Python 3 and checked with the virtual cam on MacOS Sierra.
+The imports code has also been cleaned up.
 
 Requirements:
 - Cython
 - Numpy
 - OpenCV (with Python bindings)
+
+Before using, compile the Cython modules by running
+    
+`python setup.py build_ext --inplace`  
+  
+in the folder where pyDVS is installed.
 
 Files:
 - `pydvs/`:

@@ -3,3 +3,5 @@ reports
 *.pyc
 *.p
 *.pickle
+/mnist_spikes/
+/build/

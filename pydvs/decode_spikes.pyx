@@ -1,5 +1,5 @@
-import numpy
-cimport numpy
+import numpy as np
+cimport numpy as np
 
 import cv2
 
@@ -15,24 +15,24 @@ try:
 except:
   from cv2 import INTER_AREA as CV_INTER_AREA 
   
-DTYPE = numpy.int16
-ctypedef numpy.int16_t DTYPE_t
+DTYPE = np.int16
+ctypedef np.int16_t DTYPE_t
 DTYPE_str = 'h'
 
-DTYPE_IDX = numpy.int64
-ctypedef numpy.int64_t DTYPE_IDX_t
+DTYPE_IDX = np.int64
+ctypedef np.int64_t DTYPE_IDX_t
 
-DTYPE_U8 = numpy.uint8
-ctypedef numpy.uint8_t DTYPE_U8_t
+DTYPE_U8 = np.uint8
+ctypedef np.uint8_t DTYPE_U8_t
 
-DTYPE_U16 = numpy.uint16
-ctypedef numpy.uint16_t DTYPE_U16_t
+DTYPE_U16 = np.uint16
+ctypedef np.uint16_t DTYPE_U16_t
 
-DTYPE_U32 = numpy.uint32
-ctypedef numpy.uint32_t DTYPE_U32_t
+DTYPE_U32 = np.uint32
+ctypedef np.uint32_t DTYPE_U32_t
 
-DTYPE_FLOAT = numpy.float
-ctypedef numpy.float_t DTYPE_FLOAT_t
+DTYPE_FLOAT = np.float
+ctypedef np.float_t DTYPE_FLOAT_t
 
 DEF UP_POLARITY    = 0
 DEF DOWN_POLARITY  = 1
@@ -69,8 +69,8 @@ def key_to_spike(DTYPE_U16_t key,
     
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_ref_spike_list_rate(numpy.ndarray[DTYPE_t, ndim=2] ref,
-                               numpy.ndarray[DTYPE_t, ndim=1] spikes,
+def update_ref_spike_list_rate(np.ndarray[DTYPE_t, ndim=2] ref,
+                               np.ndarray[DTYPE_t, ndim=1] spikes,
                                DTYPE_t threshold,
                                DTYPE_FLOAT_t history_weight,
                                DTYPE_U8_t flag_shift, DTYPE_U8_t data_shift, 
@@ -94,10 +94,10 @@ def update_ref_spike_list_rate(numpy.ndarray[DTYPE_t, ndim=2] ref,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_ref_spike_list_time(numpy.ndarray[DTYPE_t, ndim=2] ref,
-                               numpy.ndarray[DTYPE_t, ndim=2] time_last,
-                               numpy.ndarray[DTYPE_t, ndim=2] val_last,
-                               numpy.ndarray[DTYPE_t, ndim=1] spikes,
+def update_ref_spike_list_time(np.ndarray[DTYPE_t, ndim=2] ref,
+                               np.ndarray[DTYPE_t, ndim=2] time_last,
+                               np.ndarray[DTYPE_t, ndim=2] val_last,
+                               np.ndarray[DTYPE_t, ndim=1] spikes,
                                DTYPE_t num_bins, 
                                DTYPE_FLOAT_t bin_width,
                                DTYPE_t time_period,
@@ -132,7 +132,7 @@ def update_ref_spike_list_time(numpy.ndarray[DTYPE_t, ndim=2] ref,
 
     else:  
       time_diff = time_now - (time_last[row, col] - (num_bins - val_last[row, col]*bin_width))
-      val_now = numpy.floor(num_bins - numpy.mod(time_diff, time_period)/bin_width)
+      val_now = np.floor(num_bins - np.mod(time_diff, time_period)/bin_width)
 #~       print "(%s, %s) <= ref + update = %s + %s"%\
 #~              (row, col, ref[row, col], threshold*sign*val_now)
              
@@ -147,10 +147,10 @@ def update_ref_spike_list_time(numpy.ndarray[DTYPE_t, ndim=2] ref,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_ref_spike_list_time_bin(numpy.ndarray[DTYPE_t, ndim=2] ref,
-                                   numpy.ndarray[DTYPE_t, ndim=2] time_last,
-                                   numpy.ndarray[DTYPE_t, ndim=2] val_last,
-                                   numpy.ndarray[DTYPE_t, ndim=1] spikes,
+def update_ref_spike_list_time_bin(np.ndarray[DTYPE_t, ndim=2] ref,
+                                   np.ndarray[DTYPE_t, ndim=2] time_last,
+                                   np.ndarray[DTYPE_t, ndim=2] val_last,
+                                   np.ndarray[DTYPE_t, ndim=1] spikes,
                                    DTYPE_t num_bins, 
                                    DTYPE_FLOAT_t bin_width,
                                    DTYPE_t time_period,
@@ -184,10 +184,10 @@ def update_ref_spike_list_time_bin(numpy.ndarray[DTYPE_t, ndim=2] ref,
       continue
     else:  
       time_diff = time_now - \
-                  (time_last[row, col] - 2*(num_bins - numpy.log2(val_last[row, col])*bin_width + 1))
+                  (time_last[row, col] - 2*(num_bins - np.log2(val_last[row, col])*bin_width + 1))
 
-      val_now = numpy.power(2, 
-                            numpy.floor(num_bins - numpy.mod(time_diff, time_period)/bin_width) )
+      val_now = np.power(2, 
+                            np.floor(num_bins - np.mod(time_diff, time_period)/bin_width) )
     
       ref[row, col] = ref[row, col] + threshold*sign*val_now
 

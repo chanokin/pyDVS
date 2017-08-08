@@ -1,5 +1,5 @@
 import cv2
-import numpy
+import numpy as np
 
 
 
@@ -16,7 +16,7 @@ num_steps = int( (start_scale - end_scale)/scale_step )
 print(num_steps)
 
 step_count = 0
-out = numpy.zeros_like(circle, dtype=numpy.uint8)
+out = np.zeros_like(circle, dtype=np.uint8)
 fr_r = 0
 to_r = 0
 orig_w = circle.shape[0]
