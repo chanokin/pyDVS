@@ -1,26 +1,12 @@
 from __future__ import print_function
 import time
 
-import numpy
-from numpy import int16, uint16, uint8, float16, log2
+import numpy as np
+from numpy import int16, uint8, log2
 
 import cv2
-from cv2 import cvtColor as convertColor, COLOR_BGR2GRAY, COLOR_GRAY2RGB,\
-                resize
 
-try:                  #nearest neighboor interpolation
-  from cv2.cv import CV_INTER_NN, \
-                     CV_CAP_PROP_FRAME_WIDTH, \
-                     CV_CAP_PROP_FRAME_HEIGHT, \
-                     CV_CAP_PROP_FPS
-except:
-  from cv2 import INTER_NEAREST as CV_INTER_NN, \
-                  CAP_PROP_FRAME_WIDTH as CV_CAP_PROP_FRAME_WIDTH, \
-                  CAP_PROP_FRAME_HEIGHT as CV_CAP_PROP_FRAME_HEIGHT, \
-                  CAP_PROP_FPS as CV_CAP_PROP_FPS
-
-import pyximport; pyximport.install()
-from pydvs.generate_spikes import *
+import pydvs.generate_spikes as gs
 
 MODE_128 = "128"
 MODE_64  = "64"
@@ -54,21 +40,21 @@ IMAGE_TYPES = ["png", 'jpeg', 'jpg']
 # grab / rescale frame                                                 #
 
 def grab_first(dev, res):
-  valid, raw = dev.read()
-  height, width, depth = raw.shape
+  _, raw = dev.read()
+  height, width, _ = raw.shape
   new_height = res
   new_width = int( float(new_height*width)/float(height) )
   col_from = (new_width - res)//2
   col_to   = col_from + res
-  img = resize(convertColor(raw, COLOR_BGR2GRAY).astype(int16),
-               (new_width, new_height), interpolation=CV_INTER_NN)[:, col_from:col_to]
+  img = cv2.resize(cv2.convertColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
+               (new_width, new_height), interpolation=cv2.CV_INTER_NN)[:, col_from:col_to]
 
   return img, new_width, new_height, col_from, col_to
 
 def grab_frame(dev, width, height, col_from, col_to):
-  valid, raw = dev.read()
-  img = resize(convertColor(raw, COLOR_BGR2GRAY).astype(int16),
-               (width, height), interpolation=CV_INTER_NN)[:, col_from:col_to]
+  _, raw = dev.read()
+  img = cv2.resize(cv2.convertColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
+               (width, height), interpolation=cv2.CV_INTER_NN)[:, col_from:col_to]
 
   return img
 
@@ -96,18 +82,18 @@ scale_height = 0
 col_from = 0
 col_to = 0
 
-curr     = numpy.zeros(shape,     dtype=int16) 
-ref      = 128*numpy.ones(shape,  dtype=int16) 
-spikes   = numpy.zeros(shape,     dtype=int16) 
-diff     = numpy.zeros(shape,     dtype=int16) 
-abs_diff = numpy.zeros(shape,     dtype=int16) 
+curr     = np.zeros(shape,     dtype=int16) 
+ref      = 128*np.ones(shape,  dtype=int16) 
+spikes   = np.zeros(shape,     dtype=int16) 
+diff     = np.zeros(shape,     dtype=int16) 
+abs_diff = np.zeros(shape,     dtype=int16) 
 
 # just to see things in a window
-spk_img  = numpy.zeros((height, width, 3), uint8)
+spk_img  = np.zeros((height, width, 3), uint8)
 
 num_bits = 6   # how many bits are used to represent exceeded thresholds
 num_active_bits = 2 # how many of bits are active
-log2_table = generate_log2_table(num_active_bits, num_bits)[num_active_bits - 1]
+log2_table = gs.generate_log2_table(num_active_bits, num_bits)[num_active_bits - 1]
 spike_lists = None
 pos_spks = None
 neg_spks = None
@@ -119,7 +105,7 @@ max_diff = 0
 
 inh_width = 2
 is_inh_on = True
-inh_coords = generate_inh_coords(width, height, inh_width)
+inh_coords = gs.generate_inh_coords(width, height, inh_width)
 
 
 # -------------------------------------------------------------------- #
@@ -130,15 +116,19 @@ video_dev = cv2.VideoCapture(0) # webcam
 
 #ps3 eyetoy can do 125fps
 try:
-  video_dev.set(CV_CAP_PROP_FPS, 125)
+  video_dev.set(cv2.CV_CAP_PROP_FPS, 125)
 except:
   pass
   
-fps = video_dev.get(CV_CAP_PROP_FPS)
+fps = video_dev.get(cv2.CV_CAP_PROP_FPS)
 max_time_ms = int(1000./fps)
 
 
 #---------------------- main loop -------------------------------------#
+
+WINDOW_NAME = 'spikes'
+cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
+cv2.startWindowThread()
 
 is_first_pass = True
 start_time = time.time()
@@ -152,25 +142,25 @@ while(True):
     curr[:] = grab_frame(video_dev, scale_width,  scale_height, col_from, col_to)
   
   # do the difference
-  diff[:], abs_diff[:], spikes[:] = thresholded_difference(curr, ref, threshold)
+  diff[:], abs_diff[:], spikes[:] = gs.thresholded_difference(curr, ref, threshold)
   
   # inhibition ( optional ) 
   if is_inh_on:
-    spikes[:] = local_inhibition(spikes, abs_diff, inh_coords, 
+    spikes[:] = gs.local_inhibition(spikes, abs_diff, inh_coords, 
                                  width, height, inh_width)
   
   # update the reference
-  ref[:] = update_reference_time_binary_thresh(abs_diff, spikes, ref,
+  ref[:] = gs.update_reference_time_binary_thresh(abs_diff, spikes, ref,
                                                threshold, max_time_ms,
                                                num_active_bits,
                                                history_weight,
                                                log2_table)
   
   # convert into a set of packages to send out
-  neg_spks, pos_spks, max_diff = split_spikes(spikes, abs_diff, polarity)
+  neg_spks, pos_spks, max_diff = gs.split_spikes(spikes, abs_diff, polarity)
   
   # this takes too long, could be parallelized at expense of memory
-  spike_lists = make_spike_lists_time_bin_thr(pos_spks, neg_spks,
+  spike_lists = gs.make_spike_lists_time_bin_thr(pos_spks, neg_spks,
                                               max_diff,
                                               up_down_shift, data_shift, data_mask,
                                               max_time_ms,
@@ -179,8 +169,8 @@ while(True):
                                               num_bits,
                                               log2_table)
   
-  spk_img[:] = render_frame(spikes, curr, cam_res, cam_res, polarity)
-  cv2.imshow ("spikes", spk_img.astype(uint8))  
+  spk_img[:] = gs.render_frame(spikes, curr, cam_res, cam_res, polarity)
+  cv2.imshow (WINDOW_NAME, spk_img.astype(uint8))  
   
   if cv2.waitKey(1) & 0xFF == ord('q'):
     break
@@ -193,4 +183,7 @@ while(True):
     start_time = time.time()
   else:
     frame_count += 1
+
+cv2.destroyAllWindows()
+cv2.waitKey(1)
 
