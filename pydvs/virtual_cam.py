@@ -3,31 +3,15 @@ import os
 import inspect
 import glob
 from threading import Thread, Lock
-from time import time as get_time, sleep
+from time import time as get_time
 import copy
-import numpy
-from numpy import int16, uint16, uint8, float16, log2
+import numpy as np
+from numpy import int16
 DTYPE = int16
 
 import cv2
-from cv2 import cvtColor as convertColor, COLOR_BGR2GRAY, COLOR_GRAY2RGB,\
-                resize, imread
 
-try:                  #nearest neighboor interpolation
-  from cv2.cv import CV_INTER_NN, \
-                     CV_CAP_PROP_FRAME_WIDTH, \
-                     CV_CAP_PROP_FRAME_HEIGHT, \
-                     CV_CAP_PROP_FPS, \
-                     CV_LOAD_IMAGE_GRAYSCALE
-except:
-  from cv2 import INTER_NEAREST as CV_INTER_NN, \
-                  CAP_PROP_FRAME_WIDTH as CV_CAP_PROP_FRAME_WIDTH, \
-                  CAP_PROP_FRAME_HEIGHT as CV_CAP_PROP_FRAME_HEIGHT, \
-                  CAP_PROP_FPS as CV_CAP_PROP_FPS, \
-                  IMREAD_GRAYSCALE as CV_LOAD_IMAGE_GRAYSCALE
-
-import pyximport; pyximport.install()
-from generate_spikes import *
+import pydvs.generate_spikes as gs
 
 
 
@@ -64,7 +48,7 @@ class VirtualCam():
     self.inter_off_time = inter_off_time_ms/1000.
 
     self.max_saccade_distance = max_saccade_distance
-    self.traverse_speed = (resolution*2.)/(self.image_on_time*self.fps)
+    self.traverse_speed = (resolution*2.)//(self.image_on_time*self.fps)
     self.frames_per_microsaccade = frames_per_microsaccade
     self.frames_per_saccade = frames_per_saccade
     self.background_gray = background_gray
@@ -94,9 +78,9 @@ class VirtualCam():
 
     self.gray_image = None
     self.tmp_image  = None
-    self.tmp_orig = numpy.zeros(self.shape, dtype=DTYPE)
-    self.original_image = numpy.zeros(self.shape, dtype=DTYPE)
-    self.current_image  = numpy.zeros(self.shape, dtype=DTYPE)
+    self.tmp_orig = np.zeros(self.shape, dtype=DTYPE)
+    self.original_image = np.zeros(self.shape, dtype=DTYPE)
+    self.current_image  = np.zeros(self.shape, dtype=DTYPE)
 
     self.current_image_idx = 0
     self.global_image_idx = 0
@@ -112,13 +96,13 @@ class VirtualCam():
     self.image_buffer = [ [], [] ]
     if self.all_in_buffer:
       self.buffer_size = self.total_images
-      for i in range(self.buffer_size):
-        self.image_buffer[self.current_buffer].append( numpy.zeros(self.shape, dtype=DTYPE) )
+      for _ in range(self.buffer_size):
+        self.image_buffer[self.current_buffer].append( np.zeros(self.shape, dtype=DTYPE) )
     else:
-      for i in range(self.buffer_size):
-        self.image_buffer[self.current_buffer].append( numpy.zeros(self.shape, dtype=DTYPE) )
+      for _ in range(self.buffer_size):
+        self.image_buffer[self.current_buffer].append( np.zeros(self.shape, dtype=DTYPE) )
         self.image_buffer[int(not self.current_buffer)].append( \
-                                          numpy.zeros(self.shape, dtype=DTYPE) )
+                                          np.zeros(self.shape, dtype=DTYPE) )
 
     self.buffer_start_idx = 0
     self.load_images(self.current_buffer, self.global_image_idx, self.current_image_idx)
@@ -130,7 +114,7 @@ class VirtualCam():
         to_per_unit = 1./255.
         dirname = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         f = os.path.join(dirname, "fading_mask.png")
-        self.fade_mask = imread(f, CV_LOAD_IMAGE_GRAYSCALE)*to_per_unit
+        self.fade_mask = cv2.imread(f, cv2.IMREAD_GRAYSCALE)*to_per_unit
         
 
     if self.behaviour == VirtualCam.BEHAVE_FADE or \
@@ -193,23 +177,19 @@ class VirtualCam():
     return True
 
   def get(self, prop):
-    if prop == CV_CAP_PROP_FRAME_WIDTH:
+    if prop == cv2.CAP_PROP_FRAME_WIDTH:
       return self.width
-    elif prop == CV_CAP_PROP_FRAME_HEIGHT:
+    elif prop == cv2.CAP_PROP_FRAME_HEIGHT:
       return self.height
-    elif prop == CV_CAP_PROP_FPS:
+    elif prop == cv2.CAP_PROP_FPS:
       return self.fps
     else:
       return False
-
-  def set(self, prop):
-    return False
 
   def release(self):
     self.stop()
 
   def load_images(self, buffer_number, global_idx, curr_idx):
-    half_buffer_size = self.half_buffer_size
     num_imgs = self.total_images
 
     # print("in load_images")
@@ -241,11 +221,7 @@ class VirtualCam():
     behaviour = self.behaviour
     traverse = VirtualCam.BEHAVE_TRAVERSE
     fade = VirtualCam.BEHAVE_FADE
-    showing_img = self.showing_img
-    move_image = self.move_image
-    fps = self.fps
     num_images = self.total_images
-    image_buffer = self.image_buffer[self.current_buffer]
     all_in_buffer = self.all_in_buffer
     buffer_size = self.buffer_size
 
@@ -274,7 +250,7 @@ class VirtualCam():
       if self.num_cycles == self.max_cycles:
         self.current_image[:] = background
         self.original_image[:] = background
-        return True, self.current_image
+        return False, self.current_image
 
       if not self.showing_img:
 
@@ -297,7 +273,7 @@ class VirtualCam():
             if self.num_cycles == self.max_cycles:
                 self.current_image[:] = background
                 self.original_image[:] = background
-                return True, self.current_image
+                return False, self.current_image
             self.current_image_idx = 0
             self.global_image_idx  = 0
             if not all_in_buffer:
@@ -331,7 +307,7 @@ class VirtualCam():
 
           self.move_image(ref)
           if self.fade_with_mask:
-              self.current_image[:] = mask_image(self.current_image,
+              self.current_image[:] = gs.mask_image(self.current_image,
                                                  self.fade_mask)
       self.frame_number += 1
 
@@ -350,7 +326,7 @@ class VirtualCam():
     # original = self.original_image
     original = self.tmp_orig
     if first_run:
-      self.gray_image = imread(filename, CV_LOAD_IMAGE_GRAYSCALE)
+      self.gray_image = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
       gray = self.gray_image
 
       if gray is None:
@@ -384,7 +360,7 @@ class VirtualCam():
         to_col = from_col + width
         from_row = 0
         to_row = 0
-        self.tmp_image = resize(gray, (scaled_width, height), interpolation=CV_INTER_NN)
+        self.tmp_image = cv2.resize(gray, (scaled_width, height), interpolation=cv2.INTER_NEAREST)
 
         original[:] = self.tmp_image[:, from_col:to_col]
 
@@ -394,19 +370,18 @@ class VirtualCam():
 
     else:
       gray = self.gray_image
-      tmp = self.tmp_image
       img_smaller = self.img_smaller
       from_col = self.from_col; to_col = self.to_col
       from_row = self.from_row; to_row = self.to_row
       scaled_width = self.scaled_width
 
-      gray[:] = imread(filename, CV_LOAD_IMAGE_GRAYSCALE)
+      gray[:] = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
 
       if img_smaller:
         original[from_row:to_row, from_col:to_col] = gray
 
       else:
-        self.tmp_image[:] = resize(gray, (scaled_width, height), interpolation=CV_INTER_NN)
+        self.tmp_image[:] = cv2.resize(gray, (scaled_width, height), interpolation=cv2.INTER_NEAREST)
         original[:] = self.tmp_image[:, from_col:to_col]
 
     return original.copy()
@@ -415,7 +390,6 @@ class VirtualCam():
 
   def move_image(self, ref):
     img = self.current_image
-    fps = self.fps
     orig = self.original_image
     behaviour = self.behaviour
     half_frame = self.half_frame
@@ -430,17 +404,17 @@ class VirtualCam():
 
 
     if behaviour == VirtualCam.BEHAVE_TRAVERSE:
-        img[:] = traverse_image(orig, frame_number, speed, bg_gray)
+        img[:] = gs.traverse_image(orig, frame_number, speed, bg_gray)
 
     elif behaviour == VirtualCam.BEHAVE_FADE:
-        img[:] = fade_image(orig, frame_number, half_frame, bg_gray)
+        img[:] = gs.fade_image(orig, frame_number, half_frame, bg_gray)
 
     elif behaviour == VirtualCam.BEHAVE_MICROSACCADE:
-        img[:], cx, cy = usaccade_image(orig, frame_number, fp_uscd,
+        img[:], cx, cy = gs.usaccade_image(orig, frame_number, fp_uscd,
                                         max_dist, cx, cy, bg_gray)
 
     else:
-        img[:], cx, cy = attention_image(orig, img, ref, frame_number,
+        img[:], cx, cy = gs.attention_image(orig, img, ref, frame_number,
                                          fp_uscd, fp_scd,
                                          max_dist, cx, cy, bg_gray)
 

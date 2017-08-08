@@ -30,30 +30,15 @@ from spynnaker.pyNN import exceptions
 from virtual_cam import VirtualCam
 
 import cv2
-from cv2 import cvtColor as convertColor, COLOR_BGR2GRAY, COLOR_GRAY2RGB
-try:                  #nearest neighboor interpolation
-  from cv2.cv import CV_INTER_NN, \
-                     CV_CAP_PROP_FRAME_WIDTH, \
-                     CV_CAP_PROP_FRAME_HEIGHT, \
-                     CV_CAP_PROP_FPS
-except:
-  from cv2 import INTER_NEAREST as CV_INTER_NN, \
-                  CAP_PROP_FRAME_WIDTH as CV_CAP_PROP_FRAME_WIDTH, \
-                  CAP_PROP_FRAME_HEIGHT as CV_CAP_PROP_FRAME_HEIGHT, \
-                  CAP_PROP_FPS as CV_CAP_PROP_FPS
 
-
-
-import numpy
-from numpy import where, logical_and, argmax
-from numpy import uint8, uint16, int16
+import numpy as np
+from numpy import uint8, int16
 from multiprocessing import Process, Queue
 import time
-from operator import itemgetter
 import pickle
 
 import pyximport; pyximport.install()
-from generate_spikes import *
+import generate_spikes as gs
 
 logger = logging.getLogger(__name__)
 
@@ -145,22 +130,22 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         self._gray_frame = None
         self._tmp_frame = None
 
-        self._ref_frame = 128*numpy.ones((self._out_res, self._out_res), dtype=int16)
+        self._ref_frame = 128*np.ones((self._out_res, self._out_res), dtype=int16)
 
-        self._curr_frame = numpy.zeros((self._out_res, self._out_res), dtype=int16)
+        self._curr_frame = np.zeros((self._out_res, self._out_res), dtype=int16)
 
-        self._spikes_frame = numpy.zeros((self._out_res, self._out_res, 3), dtype=uint8)
+        self._spikes_frame = np.zeros((self._out_res, self._out_res, 3), dtype=uint8)
 
-        self._diff = numpy.zeros((self._out_res, self._out_res), dtype=int16)
+        self._diff = np.zeros((self._out_res, self._out_res), dtype=int16)
 
-        self._abs_diff = numpy.zeros((self._out_res, self._out_res), dtype=int16)
+        self._abs_diff = np.zeros((self._out_res, self._out_res), dtype=int16)
 
-        self._spikes = numpy.zeros((self._out_res, self._out_res), dtype=int16)
+        self._spikes = np.zeros((self._out_res, self._out_res), dtype=int16)
 
         self._adaptive_threshold = adaptive_threshold
         self._thresh_matrix = None
         if adaptive_threshold:
-          self._thresh_matrix = numpy.zeros((self._out_res, self._out_res),
+          self._thresh_matrix = np.zeros((self._out_res, self._out_res),
                                              dtype=int16)
 
         self._threshold_delta_down = int16(threshold_delta_down)
@@ -174,7 +159,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
         self._threshold = int16(threshold)
 
-        self._data_shift = uint8(numpy.log2(self._out_res))
+        self._data_shift = uint8(np.log2(self._out_res))
         self._up_down_shift = uint8(2*self._data_shift)
         self._data_mask = uint8(self._out_res - 1)
 
@@ -190,9 +175,9 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
         if self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN or \
            self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN_THR:
-            self._log2_table = generate_log2_table(self._num_bits_per_spike, self._num_bins)
+            self._log2_table = gs.generate_log2_table(self._num_bits_per_spike, self._num_bins)
         else:
-            self._log2_table = generate_log2_table(self._num_bits_per_spike, 8) #stupid hack, compatibility issues
+            self._log2_table = gs.generate_log2_table(self._num_bits_per_spike, 8) #stupid hack, compatibility issues
 
 
         self._scale_img = scale_img
@@ -222,7 +207,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
         self._inh_area_width = inh_area_width
         self._inhibition = inhibition
-        self._inh_coords = generate_inh_coords(self._out_res,
+        self._inh_coords = gs.generate_inh_coords(self._out_res,
                                                self._out_res,
                                                inh_area_width)
 
@@ -250,7 +235,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
         AbstractProvidesOutgoingConstraints.__init__(self)
 
-        print "number of neurons for webcam = %d"%self._n_neurons
+        print("number of neurons for webcam = %d"%self._n_neurons)
 
         self._live_conn = SpynnakerLiveSpikesConnection(send_labels = [self._label, ],
                                                         local_port = self._local_port)
@@ -347,7 +332,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             if frame_time < self._time_per_frame:
               time.sleep(self._time_per_frame - frame_time)
 
-        print "webcam runtime ", app_curr_time - app_start_time
+        print("webcam runtime ", app_curr_time - app_start_time)
         img_queue.put(None)
         spike_gen_proc.join()
 
@@ -362,17 +347,17 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
     def process_frame(self, img_queue, spike_queue):
 
         label = self._label
-        sender = self._sender
         spikes_frame = self._spikes_frame
+        
         cv2.namedWindow (label)
+        cv2.startWindowThread()
+        
         res2x = self._res_2x
         spike_list = []
         # gen_times = []
         # compose_times = []
         # transform_times = []
         # ref_up_times = []
-        start_time = 0.
-        end_time   = 0.
         lists = None
         while True:
             image = img_queue.get()
@@ -402,30 +387,30 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             # compose_times.append(time.time()-start_time)
 
 
-            cv2.imshow( label,
-                        cv2.resize(spikes_frame, (res2x, res2x)) )
+            cv2.imshow( label, cv2.resize(spikes_frame, (res2x, res2x)) )
 
             if cv2.waitKey(1) & 0xFF == ord('q'):#\
-               #or not sender.isAlive():
-                self._running = False
-                break
+              #or not sender.isAlive():
+              self._running = False
+              break
 
             #continue
 
         # print("gen times")
-        # print(numpy.array(gen_times).mean())
+        # print(np.array(gen_times).mean())
         # print("update ref times")
-        # print(numpy.array(ref_up_times).mean())
+        # print(np.array(ref_up_times).mean())
         # print("transform times")
-        # print(numpy.array(transform_times).mean())
+        # print(np.array(transform_times).mean())
         # print("compose times")
-        # print(numpy.array(compose_times).mean())
+        # print(np.array(compose_times).mean())
 
         cv2.destroyAllWindows()
+        cv2.waitKey(1)
 
         if self._save_spikes is not None:
             #print spike_list
-            print "attempting to save spike_list"
+            print("attempting to save spike_list")
             pickle.dump( spike_list, open(self._save_spikes, "wb") )
 
 
@@ -453,15 +438,15 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             self._video_source.open()
 
         try:
-            self._video_source.set(CV_CAP_PROP_FRAME_WIDTH, 320)
-            self._video_source.set(CV_CAP_PROP_FRAME_HEIGHT, 240)
+            self._video_source.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+            self._video_source.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
         except:
             pass
 
         try:
-            self._video_source.set(CV_CAP_PROP_FPS, self._fps)
+            self._video_source.set(cv2.CAP_PROP_FPS, self._fps)
         except:
-            self._fps = self._video_source.get(CV_CAP_PROP_FPS)
+            self._fps = self._video_source.get(cv2.CAP_PROP_FPS)
 
         self._max_time_ms = int16((1./self._fps)*1000)
         self._time_per_frame = 1./self._fps
@@ -491,9 +476,9 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
             #~ start_time = time.time()
             if self._gray_frame is None or self._scale_changed:
-                self._gray_frame = convertColor(self._raw_frame, COLOR_BGR2GRAY).astype(int16)
+                self._gray_frame = cv2.convertColor(self._raw_frame, cv2.COLOR_BGR2GRAY).astype(int16)
             else:
-                self._gray_frame[:] = convertColor(self._raw_frame, COLOR_BGR2GRAY)
+                self._gray_frame[:] = cv2.convertColor(self._raw_frame, cv2.COLOR_BGR2GRAY)
             #~ end_time = time.time()
             #~ print("Time to convert to grayscale = ", end_time - start_time)
 
@@ -518,7 +503,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                     self._img_height_crop_u = diff//2
                     self._img_height_crop_b = self._img_height_crop_u + self._out_res
 
-                self._tmp_frame = numpy.zeros((self._out_res, self._img_scaled_width))
+                self._tmp_frame = np.zeros((self._out_res, self._img_scaled_width))
 
 
             #~ end_time = time.time()
@@ -527,7 +512,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             #~ start_time = time.time()
             if self._scale_img:
                 self._tmp_frame[:] = cv2.resize(self._gray_frame, (self._img_scaled_width, self._out_res),
-                                             interpolation=CV_INTER_NN)
+                                             interpolation=cv2.INTER_NN)
 
                 self._curr_frame[:] = self._tmp_frame[:, self._img_width_crop_l: self._img_width_crop_r]
             else:
@@ -545,13 +530,10 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
 
     def emit_spikes(self, sender, lists):
-        up_spks = self._up_spikes
-        dn_spks = self._down_spikes
         lbl     = self._label
         max_time_s = self._time_per_spike_pack_ms/1000.
         #~ lists   = self._spikes_lists
         send_spikes = sender.send_spikes
-        keys = []
 
         #from generate_spikes.pyx (cython)
         if lists is not None:
@@ -573,31 +555,26 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         diff = self._diff
         abs_diff = self._abs_diff
         spikes = self._spikes
-        polarity = self._polarity_n
         img_w = self._out_res
         inh_w = self._inh_area_width
         inhibition = self._inhibition
         inh_coords = self._inh_coords
-        max_thresh = self._max_threshold
-        min_thresh = self._min_threshold
         threshold = self._threshold
 
         if self._adaptive_threshold:
             thresh_mat = self._thresh_matrix
-            thresh_delta_up   = self._threshold_delta_down
-            thresh_delta_down = self._threshold_delta_up
 
 
             #all from generate_spikes.pyx (cython)
-            diff[:], abs_diff[:], spikes[:] = thresholded_difference_adpt(curr_frame, ref_frame,
+            diff[:], abs_diff[:], spikes[:] = gs.thresholded_difference_adpt(curr_frame, ref_frame,
                                                                           thresh_mat)
         else:
             #all from generate_spikes.pyx (cython)
-            diff[:], abs_diff[:], spikes[:] = thresholded_difference(curr_frame, ref_frame,
+            diff[:], abs_diff[:], spikes[:] = gs.thresholded_difference(curr_frame, ref_frame,
                                                                      threshold)
 
         if inhibition:
-            spikes[:] = local_inhibition(spikes, abs_diff, inh_coords, img_w, img_w, inh_w)
+            spikes[:] = gs.local_inhibition(spikes, abs_diff, inh_coords, img_w, img_w, inh_w)
 
 
 
@@ -618,7 +595,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             thresh_mat = self._thresh_matrix
             thresh_delta_down = self._threshold_delta_down
             thresh_delta_up   = self._threshold_delta_up
-            ref_frame[:], thresh_mat[:] = update_reference_rate_adpt(abs_diff, spikes,
+            ref_frame[:], thresh_mat[:] = gs.update_reference_rate_adpt(abs_diff, spikes,
                                                                      ref_frame, thresh_mat,
                                                                      min_thresh, max_thresh,
                                                                      thresh_delta_down,
@@ -629,18 +606,18 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         else:
             if self._output_type == ExternalDvsEmulatorDevice.OUTPUT_RATE:
 
-                ref_frame[:] = update_reference_rate(abs_diff, spikes, ref_frame,
+                ref_frame[:] = gs.update_reference_rate(abs_diff, spikes, ref_frame,
                                                      threshold, max_time_ms, history_weight)
 
             elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME:
 
-                ref_frame[:] = update_reference_time_thresh(abs_diff, spikes, ref_frame,
+                ref_frame[:] = gs.update_reference_time_thresh(abs_diff, spikes, ref_frame,
                                                             threshold, max_time_ms,
                                                             history_weight)
 
             elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN:
 
-                ref_frame[:] = update_reference_time_binary_raw(abs_diff, spikes, ref_frame,
+                ref_frame[:] = gs.update_reference_time_binary_raw(abs_diff, spikes, ref_frame,
                                                                 threshold, max_time_ms,
                                                                 num_bits,
                                                                 history_weight,
@@ -648,16 +625,13 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
 
             elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN_THR:
 
-                ref_frame[:] = update_reference_time_binary_thresh(abs_diff, spikes, ref_frame,
+                ref_frame[:] = gs.update_reference_time_binary_thresh(abs_diff, spikes, ref_frame,
                                                                    threshold, max_time_ms,
                                                                    num_bits,
                                                                    history_weight,
                                                                    log2_table)
 
     def transform_spikes(self):
-        up_spks = self._up_spikes
-        dn_spks = self._down_spikes
-        g_max = self._global_max
         data_shift = self._data_shift
         up_down_shift = self._up_down_shift
         data_mask = self._data_mask
@@ -665,7 +639,6 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         spikes = self._spikes
         threshold = self._threshold
         max_thresh = self._max_threshold
-        min_thresh = self._min_threshold
         #~ lists = self._spikes_lists
         max_time_ms = self._max_time_ms
         abs_diff = self._abs_diff
@@ -673,17 +646,17 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         num_bits = self._num_bits_per_spike
         log2_table = self._log2_table[num_bits - 1]
 
-        dn_spks, up_spks, g_max = split_spikes(spikes, abs_diff, polarity)
+        dn_spks, up_spks, g_max = gs.split_spikes(spikes, abs_diff, polarity)
         lists = None
         #from generate_spikes.pyx (cython)
         if self._output_type == ExternalDvsEmulatorDevice.OUTPUT_RATE:
-          lists = make_spike_lists_rate(up_spks, dn_spks,
+          lists = gs.make_spike_lists_rate(up_spks, dn_spks,
                                         g_max, threshold,
                                         up_down_shift, data_shift, data_mask,
                                         max_time_ms)
 
         elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME:
-          lists = make_spike_lists_time(up_spks, dn_spks,
+          lists = gs.make_spike_lists_time(up_spks, dn_spks,
                                         g_max,
                                         up_down_shift, data_shift, data_mask,
                                         num_bins,
@@ -691,7 +664,7 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                                         threshold, max_thresh)
 
         elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN:
-          lists = make_spike_lists_time_bin(up_spks, dn_spks,
+          lists = gs.make_spike_lists_time_bin(up_spks, dn_spks,
                                             g_max,
                                             up_down_shift, data_shift, data_mask,
                                             max_time_ms,
@@ -700,13 +673,13 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
                                             log2_table)
 
         elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN_THR:
-          lists = make_spike_lists_time_bin_thr(up_spks, dn_spks,
-                                                g_max,
-                                                up_down_shift, data_shift, data_mask,
-                                                max_time_ms,
-                                                threshold, max_thresh,
-                                                num_bins,
-                                                log2_table)
+          lists = gs.make_spike_lists_time_bin_thr(up_spks, dn_spks,
+                                                  g_max,
+                                                  up_down_shift, data_shift, data_mask,
+                                                  max_time_ms,
+                                                  threshold, max_thresh,
+                                                  num_bins,
+                                                  log2_table)
         return lists
 
 
@@ -719,9 +692,9 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
         polarity = self._polarity_n
 
         #from generate_spikes.pyx (cython)
-        spikes_frame[:] = render_frame(spikes=spikes, curr_frame=curr_frame,
-                                       width=width, height=height,
-                                       polarity=polarity)
+        spikes_frame[:] = gs.render_frame(spikes=spikes, curr_frame=curr_frame,
+                                          width=width, height=height,
+                                          polarity=polarity)
 
 
     def calculate_time_per_pack(self):
@@ -730,13 +703,13 @@ class ExternalDvsEmulatorDevice(ReverseIpTagMultiCastSource,
             time_per_pack = 1
 
         elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME:
-            time_per_pack = (self._max_time_ms)/ \
+            time_per_pack = (self._max_time_ms)// \
                             (min(self._max_time_ms,
-                                 self._max_threshold/self._min_threshold + 1))
+                                 self._max_threshold//self._min_threshold + 1))
 
         elif self._output_type == ExternalDvsEmulatorDevice.OUTPUT_TIME_BIN:
-            time_per_pack = (self._max_time_ms)/(8) #raw difference value could be 8-bit
+            time_per_pack = (self._max_time_ms)//(8) #raw difference value could be 8-bit
         else:
-            time_per_pack = (self._max_time_ms)/(self._num_bits_per_spike + 1)
+            time_per_pack = (self._max_time_ms)//(self._num_bits_per_spike + 1)
 
         return time_per_pack

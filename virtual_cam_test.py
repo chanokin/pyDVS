@@ -1,27 +1,11 @@
 from __future__ import print_function
-import os
-import glob
-import threading
 import time
 
-import numpy
-from numpy import int16, uint16, uint8, float16, log2
+import numpy as np
+from numpy import int16, uint8
 DTYPE = int16
 
 import cv2
-from cv2 import cvtColor as convertColor, COLOR_BGR2GRAY, COLOR_GRAY2RGB,\
-                resize
-
-try:                  #nearest neighboor interpolation
-  from cv2.cv import CV_INTER_NN, \
-                     CV_CAP_PROP_FRAME_WIDTH, \
-                     CV_CAP_PROP_FRAME_HEIGHT, \
-                     CV_CAP_PROP_FPS
-except:
-  from cv2 import INTER_NEAREST as CV_INTER_NN, \
-                  CAP_PROP_FRAME_WIDTH as CV_CAP_PROP_FRAME_WIDTH, \
-                  CAP_PROP_FRAME_HEIGHT as CV_CAP_PROP_FRAME_HEIGHT, \
-                  CAP_PROP_FPS as CV_CAP_PROP_FPS
 
 from pydvs.virtual_cam import VirtualCam
 #BEHAVE_MICROSACCADE = "SACCADE"
@@ -30,31 +14,42 @@ from pydvs.virtual_cam import VirtualCam
 #BEHAVE_FADE         = "FADE"
 
 fps = 120
+max_cycles = 1
 
 max_frame_time = 1./fps
-resolution=64
-behaviour = VirtualCam.BEHAVE_ATTENTION
+resolution=32
+behaviour = VirtualCam.BEHAVE_MICROSACCADE
 on_ms = 1000.
 off_ms = on_ms*2.
-vcam = VirtualCam("./mnist/", fps=fps, resolution=resolution, behaviour=behaviour,
-                  image_on_time_ms = on_ms, inter_off_time_ms = off_ms)
+vcam = VirtualCam("./mnist/t10k/", fps=fps, resolution=resolution, behaviour=behaviour,
+                  image_on_time_ms = on_ms, inter_off_time_ms = off_ms, max_cycles=max_cycles)
 valid_img = True
-img = numpy.zeros((resolution, resolution), dtype=uint8)
-ref = numpy.zeros((resolution, resolution), dtype=int16)
+img = np.zeros((resolution, resolution), dtype=uint8)
+ref = np.zeros((resolution, resolution), dtype=int16)
 # print(vcam.image_filenames)
 frame_count = 0
 start_time = time.time()
 prev_time = time.time()
 wait_time = 0.
+WINDOW_NAME = 'MNIST Images'
+cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
+cv2.startWindowThread()
+
 while True:
 
   valid_img, img[:] = vcam.read(ref)
   #ref[:] = img
+  
+  if not valid_img:
+    if max_cycles == 1:
+      print("Finished the specified single cycle")
+    else:
+      print("Finished the specified %i cycles" %max_cycles)
+    break
 
-  cv2.imshow("label", img)
+  cv2.imshow(WINDOW_NAME, img)
 
-  key = cv2.waitKey(1) & 0xFF
-
+  key = cv2.waitKey(10) & 0xFF
   if key == ord('q') or key == ord('Q'):
     break
 
@@ -73,3 +68,5 @@ while True:
 
 
 vcam.stop()
+cv2.destroyAllWindows()
+cv2.waitKey(1)

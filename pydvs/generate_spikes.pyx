@@ -1,5 +1,5 @@
-import numpy
-cimport numpy
+import numpy as np
+cimport numpy as np
 
 import cv2
 import time
@@ -16,22 +16,22 @@ try:
 except:
   from cv2 import INTER_AREA as CV_INTER_AREA
 
-DTYPE = numpy.int16
-ctypedef numpy.int16_t DTYPE_t
+DTYPE = np.int16
+ctypedef np.int16_t DTYPE_t
 DTYPE_str = 'h'
 
 
-DTYPE_IDX = numpy.int64
-ctypedef numpy.int64_t DTYPE_IDX_t
+DTYPE_IDX = np.int64
+ctypedef np.int64_t DTYPE_IDX_t
 
-DTYPE_U8 = numpy.uint8
-ctypedef numpy.uint8_t DTYPE_U8_t
+DTYPE_U8 = np.uint8
+ctypedef np.uint8_t DTYPE_U8_t
 
-DTYPE_U16 = numpy.uint16
-ctypedef numpy.uint16_t DTYPE_U16_t
+DTYPE_U16 = np.uint16
+ctypedef np.uint16_t DTYPE_U16_t
 
-DTYPE_FLOAT = numpy.float
-ctypedef numpy.float_t DTYPE_FLOAT_t
+DTYPE_FLOAT = np.float
+ctypedef np.float_t DTYPE_FLOAT_t
 
 DEF UP_POLARITY    = 0
 DEF DOWN_POLARITY  = 1
@@ -46,8 +46,8 @@ DEF KEY_XYP = 1
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def thresholded_difference(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
-                           numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
+def thresholded_difference(np.ndarray[DTYPE_t, ndim=2] curr_frame,
+                           np.ndarray[DTYPE_t, ndim=2] ref_frame,
                            DTYPE_t threshold):
   """
     :param curr_frame: Latest image captured by the camera
@@ -61,17 +61,17 @@ def thresholded_difference(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
                       to lower brightness value, 1 means change from lower to
                       higher brightness value.)
   """
-  cdef numpy.ndarray[DTYPE_t, ndim=2] diff, abs_diff, spikes
-  cdef numpy.ndarray[DTYPE_IDX_t, ndim=1] neg_r, neg_c
+  cdef np.ndarray[DTYPE_t, ndim=2] diff, abs_diff, spikes
+  cdef np.ndarray[DTYPE_IDX_t, ndim=1] neg_r, neg_c
 
   diff = curr_frame - ref_frame
-  abs_diff = numpy.abs(diff)
+  abs_diff = np.abs(diff)
 
   spikes = (abs_diff > threshold).astype(DTYPE)
 
   abs_diff = (abs_diff*spikes)
 
-  neg_r, neg_c = numpy.where(diff < -threshold)
+  neg_r, neg_c = np.where(diff < -threshold)
   spikes[neg_r, neg_c] = -1
 
 
@@ -80,9 +80,9 @@ def thresholded_difference(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def thresholded_difference_adpt(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
-                                numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
-                                numpy.ndarray[DTYPE_t, ndim=2] threshold,
+def thresholded_difference_adpt(np.ndarray[DTYPE_t, ndim=2] curr_frame,
+                                np.ndarray[DTYPE_t, ndim=2] ref_frame,
+                                np.ndarray[DTYPE_t, ndim=2] threshold,
                                 DTYPE_t min_threshold,
                                 DTYPE_t max_threshold):
   """
@@ -98,16 +98,16 @@ def thresholded_difference_adpt(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
                       to lower brightness value, 1 means change from lower to
                       higher brightness value.)
   """
-  cdef numpy.ndarray[DTYPE_t, ndim=2] diff, abs_diff, spikes
-  cdef numpy.ndarray[DTYPE_IDX_t, ndim=1] neg_r, neg_c
+  cdef np.ndarray[DTYPE_t, ndim=2] diff, abs_diff, spikes
+  cdef np.ndarray[DTYPE_IDX_t, ndim=1] neg_r, neg_c
 
   diff = curr_frame - ref_frame
-  abs_diff = numpy.abs(diff)
+  abs_diff = np.abs(diff)
 
 
   spikes = (abs_diff > threshold).astype(DTYPE)
   abs_diff = (abs_diff*spikes)
-  neg_r, neg_c = numpy.where(diff < -threshold)
+  neg_r, neg_c = np.where(diff < -threshold)
   spikes[neg_r, neg_c] = -1
 
   return diff, abs_diff, spikes
@@ -148,7 +148,7 @@ cdef inline transform_coords(u, v, inh_w, ratio):
     :param ratio:   Total image width to area width ratio
     :returns i, j:  Area coordinates
   """
-  return inh_w*(u/ratio) + v/inh_w, inh_w*(u%ratio) + v%inh_w
+  return inh_w*(u//ratio) + v//inh_w, inh_w*(u%ratio) + v%inh_w
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -164,19 +164,19 @@ def generate_inh_coords(DTYPE_t width, DTYPE_t height, DTYPE_t inh_width):
   """
   cdef Py_ssize_t u, v, new_w, new_h, ratio
   new_w = inh_width*inh_width
-  new_h = (height*width)/new_w
-  ratio = width/inh_width
+  new_h = (height*width)//new_w
+  ratio = width//inh_width
 
-  return numpy.array([transform_coords(u, v, inh_width, ratio) \
+  return np.array([transform_coords(u, v, inh_width, ratio) \
                                         for u in range(new_h) \
                                         for v in range(new_w)],
                     dtype=DTYPE)
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def local_inhibition(numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                     numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                     numpy.ndarray[DTYPE_t, ndim=2] inh_coords,
+def local_inhibition(np.ndarray[DTYPE_t, ndim=2] spikes,
+                     np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                     np.ndarray[DTYPE_t, ndim=2] inh_coords,
                      DTYPE_t width,
                      DTYPE_t height,
                      DTYPE_t inh_width):
@@ -192,25 +192,25 @@ def local_inhibition(numpy.ndarray[DTYPE_t, ndim=2] spikes,
   """
   cdef Py_ssize_t u, v, new_w, new_h, ratio
 
-#~   cdef numpy.ndarray[DTYPE_t, ndim=2] reshaped
+#~   cdef np.ndarray[DTYPE_t, ndim=2] reshaped
   cdef DTYPE_t[:,:] reshaped
-  cdef numpy.ndarray[DTYPE_t, ndim=1] max_vals
-  cdef numpy.ndarray[Py_ssize_t, ndim=2] max_indices
-  cdef numpy.ndarray[Py_ssize_t, ndim=1] max_local_indices
+  cdef np.ndarray[DTYPE_t, ndim=1] max_vals
+  cdef np.ndarray[Py_ssize_t, ndim=2] max_indices
+  cdef np.ndarray[Py_ssize_t, ndim=1] max_local_indices
 
 
   new_w = inh_width*inh_width
-  new_h = (height*width)/new_w
-  ratio = width/inh_width
+  new_h = (height*width)//new_w
+  ratio = width//inh_width
 
   #(w*h/inh_w^2, inh_w^2) so we can efficiently find local max
   reshaped = abs_diff[inh_coords[:, ROWS], inh_coords[:, COLS]].reshape((new_h, new_w))
-  max_local_indices = numpy.zeros(new_h, dtype=DTYPE_IDX)
+  max_local_indices = np.zeros(new_h, dtype=DTYPE_IDX)
   #allow parallel compute of max indices
   for v in prange(new_h, nogil=True):
     max_local_indices[v] = argmax(reshaped[v], new_w)
 
-  max_indices = numpy.array([transform_coords(u, max_local_indices[u], inh_width, ratio) \
+  max_indices = np.array([transform_coords(u, max_local_indices[u], inh_width, ratio) \
                              for u in range(new_h)], dtype=DTYPE_IDX)
 
   max_vals = spikes[max_indices[:, ROWS], max_indices[:, COLS]]
@@ -222,9 +222,9 @@ def local_inhibition(numpy.ndarray[DTYPE_t, ndim=2] spikes,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_reference_rate(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                          numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                          numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
+def update_reference_rate(np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                          np.ndarray[DTYPE_t, ndim=2] spikes,
+                          np.ndarray[DTYPE_t, ndim=2] ref_frame,
                           DTYPE_t threshold,
                           DTYPE_t max_time_ms,
                           DTYPE_FLOAT_t history_weight):
@@ -241,22 +241,22 @@ def update_reference_rate(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
     :returns ref_frame:     Updated reference frame
   """
 
-  cdef numpy.ndarray[DTYPE_t, ndim=2] num_spikes = abs_diff/threshold
+  cdef np.ndarray[DTYPE_t, ndim=2] num_spikes = abs_diff//threshold
 
   # at most max_time_ms spikes
-  num_spikes = numpy.clip(num_spikes, 0, max_time_ms, out=num_spikes)
+  num_spikes = np.clip(num_spikes, 0, max_time_ms, out=num_spikes)
   # can only update N*threshold quantities
-  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + num_spikes*spikes*threshold, 0, 255)
+  ref_frame = np.clip( DTYPE(history_weight*ref_frame) + num_spikes*spikes*threshold, 0, 255)
 
   return ref_frame
 
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_reference_rate_adpt(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                               numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                               numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
-                               numpy.ndarray[DTYPE_t, ndim=2] threshold,
+def update_reference_rate_adpt(np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                               np.ndarray[DTYPE_t, ndim=2] spikes,
+                               np.ndarray[DTYPE_t, ndim=2] ref_frame,
+                               np.ndarray[DTYPE_t, ndim=2] threshold,
                                DTYPE_t min_threshold,
                                DTYPE_t max_threshold,
                                DTYPE_t down_threshold_change,
@@ -283,27 +283,24 @@ def update_reference_rate_adpt(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
     :returns threshold:     Updated per-pixel threshold matrix
   """
   ### can only update N*threshold quantities
-  cdef numpy.ndarray[DTYPE_t, ndim=2] update = numpy.zeros_like(spikes, dtype=DTYPE)
-  cdef numpy.ndarray[DTYPE_t, ndim=2] num_spikes = abs_diff/threshold
+  cdef np.ndarray[DTYPE_t, ndim=2] update = np.zeros_like(spikes, dtype=DTYPE)
+  cdef np.ndarray[DTYPE_t, ndim=2] num_spikes = abs_diff//threshold
 
   ref_frame = DTYPE(history_weight*ref_frame) + num_spikes*spikes*min_threshold
 
-  update = numpy.logical_and(spikes != 0, threshold < max_threshold).astype(dtype=DTYPE)*\
-                                                                       up_threshold_change
-
+  update = (spikes != 0).astype(dtype=DTYPE)*up_threshold_change
   threshold += update
 
-  update = numpy.logical_and(spikes != 0, threshold > min_threshold).astype(dtype=DTYPE)*\
-                                                                     down_threshold_change
+  update = (spikes == 0).astype(dtype=DTYPE)*down_threshold_change
   threshold -= update
 
-  return numpy.clip(ref_frame, 0, 255), threshold
+  return np.clip(ref_frame, 0, 255), np.clip(threshold, min_threshold, max_threshold)
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_reference_time_thresh(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                                 numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                                 numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
+def update_reference_time_thresh(np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                                 np.ndarray[DTYPE_t, ndim=2] spikes,
+                                 np.ndarray[DTYPE_t, ndim=2] ref_frame,
                                  DTYPE_t threshold,
                                  DTYPE_t max_time_ms,
                                  DTYPE_FLOAT_t history_weight):
@@ -330,23 +327,23 @@ def update_reference_time_thresh(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
          nTH  (n-1)TH  ...    2TH     TH
 
   """
-  cdef numpy.ndarray[DTYPE_t, ndim=2] mult = numpy.clip(abs_diff/threshold, 0, max_time_ms)
+  cdef np.ndarray[DTYPE_t, ndim=2] mult = np.clip(abs_diff//threshold, 0, max_time_ms)
 #~   print abs_diff[:10, :10]
-  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + spikes*mult*threshold, 0, 255)
+  ref_frame = np.clip( DTYPE(history_weight*ref_frame) + spikes*mult*threshold, 0, 255)
 
   return ref_frame
 
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_reference_time_binary_raw(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                                     numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                                     numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
+def update_reference_time_binary_raw(np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                                     np.ndarray[DTYPE_t, ndim=2] spikes,
+                                     np.ndarray[DTYPE_t, ndim=2] ref_frame,
                                      DTYPE_t threshold,
                                      DTYPE_t max_time_ms,
                                      DTYPE_t num_spikes,
                                      DTYPE_FLOAT_t history_weight,
-                                     numpy.ndarray[DTYPE_U8_t, ndim=1] log2_table):
+                                     np.ndarray[DTYPE_U8_t, ndim=1] log2_table):
   """
     Time based spike transmission.
     :param abs_diff:        Absolute value of the difference of current frame and
@@ -374,22 +371,22 @@ def update_reference_time_binary_raw(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
    val           32          4
    original = 38, encoded with only 2 active bits = 36
   """
-  cdef numpy.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff])
+  cdef np.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff])
 #~   print abs_diff[:10, :10]
-  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + spikes*mult, 0, 255)
+  ref_frame = np.clip( DTYPE(history_weight*ref_frame) + spikes*mult, 0, 255)
 
   return ref_frame
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_reference_time_binary_thresh(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                                        numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                                        numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
+def update_reference_time_binary_thresh(np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                                        np.ndarray[DTYPE_t, ndim=2] spikes,
+                                        np.ndarray[DTYPE_t, ndim=2] ref_frame,
                                         DTYPE_t threshold,
                                         DTYPE_t max_time_ms,
                                         DTYPE_t num_spikes,
                                         DTYPE_FLOAT_t history_weight,
-                                        numpy.ndarray[DTYPE_U8_t, ndim=1] log2_table):
+                                        np.ndarray[DTYPE_U8_t, ndim=1] log2_table):
 
   """
     Time based spike transmission.
@@ -421,30 +418,30 @@ def update_reference_time_binary_thresh(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
 
   """
 
-  cdef numpy.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff/threshold])
+  cdef np.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff//threshold])
 
-  ref_frame = numpy.clip( DTYPE(history_weight*ref_frame) + spikes*mult*threshold, 0, 255)
+  ref_frame = np.clip( DTYPE(history_weight*ref_frame) + spikes*mult*threshold, 0, 255)
 
   return ref_frame
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_reference_time_binary_raw_noise(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                                           numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                                           numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
+def update_reference_time_binary_raw_noise(np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                                           np.ndarray[DTYPE_t, ndim=2] spikes,
+                                           np.ndarray[DTYPE_t, ndim=2] ref_frame,
                                            DTYPE_t width,
                                            DTYPE_t height,
                                            DTYPE_t threshold,
                                            DTYPE_t max_time_ms,
                                            DTYPE_t num_spikes,
                                            DTYPE_FLOAT_t history_weight,
-                                           numpy.ndarray[DTYPE_U8_t, ndim=1] log2_table,
+                                           np.ndarray[DTYPE_U8_t, ndim=1] log2_table,
                                            DTYPE_t noise_probability):
 
-  cdef numpy.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff])
+  cdef np.ndarray[DTYPE_t, ndim=2] mult = DTYPE(log2_table[abs_diff])
   cdef int num_indices = int((float(noise_probability)/100.)*(width*height))
-  cdef numpy.ndarray[DTYPE_t, ndim=1] sample = DTYPE(numpy.random.randint(0, height*width, size=num_indices))
-  cdef numpy.ndarray[DTYPE_t, ndim=1] rows = sample/width
-  cdef numpy.ndarray[DTYPE_t, ndim=1] cols = sample%width
+  cdef np.ndarray[DTYPE_t, ndim=1] sample = DTYPE(np.random.randint(0, height*width, size=num_indices))
+  cdef np.ndarray[DTYPE_t, ndim=1] rows = sample//width
+  cdef np.ndarray[DTYPE_t, ndim=1] cols = sample%width
   mult[rows,cols] = mult[rows,cols] ^ 0xFF # add noise by xor with 1111 1111
 #~   print abs_diff[:10, :10]
   ref_frame = DTYPE(history_weight*ref_frame) + spikes*mult
@@ -453,9 +450,9 @@ def update_reference_time_binary_raw_noise(numpy.ndarray[DTYPE_t, ndim=2] abs_di
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def update_reference_time_thresh_noise(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
-                                       numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                                       numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
+def update_reference_time_thresh_noise(np.ndarray[DTYPE_t, ndim=2] abs_diff,
+                                       np.ndarray[DTYPE_t, ndim=2] spikes,
+                                       np.ndarray[DTYPE_t, ndim=2] ref_frame,
                                        DTYPE_t width,
                                        DTYPE_t height,
                                        DTYPE_t threshold,
@@ -463,11 +460,11 @@ def update_reference_time_thresh_noise(numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
                                        DTYPE_FLOAT_t history_weight,
                                        DTYPE_t noise_probability):
 
-  cdef numpy.ndarray[DTYPE_t, ndim=2] mult = numpy.clip(abs_diff/threshold, 0, max_time_ms)
+  cdef np.ndarray[DTYPE_t, ndim=2] mult = np.clip(abs_diff//threshold, 0, max_time_ms)
   cdef int num_indices = int((float(noise_probability)/100.)*(width*height))
-  cdef numpy.ndarray[DTYPE_t, ndim=1] sample = DTYPE(numpy.random.randint(0, height*width, size=num_indices))
-  cdef numpy.ndarray[DTYPE_t, ndim=1] rows = sample/width
-  cdef numpy.ndarray[DTYPE_t, ndim=1] cols = sample%width
+  cdef np.ndarray[DTYPE_t, ndim=1] sample = DTYPE(np.random.randint(0, height*width, size=num_indices))
+  cdef np.ndarray[DTYPE_t, ndim=1] rows = sample//width
+  cdef np.ndarray[DTYPE_t, ndim=1] cols = sample%width
 #   mult[rows,cols] = mult[rows,cols] ^ 0xFF # add noise by xor with 1111 1111
   mult[rows,cols] = 0
 #~   print abs_diff[:10, :10]
@@ -486,8 +483,8 @@ cdef DTYPE_U8_t encode_time_n_bits_single(DTYPE_t in_data, DTYPE_t num_bits):
   if in_data == 0:
     return 0
 
-  cdef DTYPE_t max_pow = DTYPE(numpy.log2(in_data))
-  cdef DTYPE_U8_t mult = DTYPE_U8(numpy.power(2, max_pow))
+  cdef DTYPE_t max_pow = DTYPE(np.log2(in_data))
+  cdef DTYPE_U8_t mult = DTYPE_U8(np.power(2, max_pow))
 
   if num_bits == 1:
     return mult
@@ -495,8 +492,8 @@ cdef DTYPE_U8_t encode_time_n_bits_single(DTYPE_t in_data, DTYPE_t num_bits):
   cdef int index = 0;
   for index in range(num_bits - 1):
     if (in_data - mult) > 0:
-      max_pow = DTYPE( numpy.log2(in_data - mult) )
-      mult = mult | DTYPE_U8( numpy.power(2, max_pow) )
+      max_pow = DTYPE( np.log2(in_data - mult) )
+      mult = mult | DTYPE_U8( np.power(2, max_pow) )
     else:
       break
 
@@ -505,15 +502,15 @@ cdef DTYPE_U8_t encode_time_n_bits_single(DTYPE_t in_data, DTYPE_t num_bits):
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-cdef numpy.ndarray[DTYPE_t, ndim=2] encode_time_n_bits(numpy.ndarray[DTYPE_t, ndim=2] in_data,
+cdef np.ndarray[DTYPE_t, ndim=2] encode_time_n_bits(np.ndarray[DTYPE_t, ndim=2] in_data,
                                                        DTYPE_t num_bits):
   """ Get an approximate value of in_data using only num_bits on bits (matrix version)
     :param in_data:  Value to encode
     :param num_bits: Maximum number of bits used in the encoding
     :returns mult:   Approximate value
   """
-  cdef numpy.ndarray[DTYPE_t, ndim=2] max_pow = DTYPE(numpy.log2(in_data <<1))
-  cdef numpy.ndarray[DTYPE_t, ndim=2] mult = numpy.power(2, max_pow) >> 1
+  cdef np.ndarray[DTYPE_t, ndim=2] max_pow = DTYPE(np.log2(in_data <<1))
+  cdef np.ndarray[DTYPE_t, ndim=2] mult = np.power(2, max_pow) >> 1
 
   if num_bits == 1:
     return mult
@@ -522,43 +519,43 @@ cdef numpy.ndarray[DTYPE_t, ndim=2] encode_time_n_bits(numpy.ndarray[DTYPE_t, nd
   for index in range(num_bits - 1):
     #print "encoding cycle = %d"%index
     #print mult[:10, :10]
-    max_pow = DTYPE( numpy.log2((in_data - mult) << 1) )
-    mult = mult | ( numpy.power(2, max_pow) >> 1 )
+    max_pow = DTYPE( np.log2((in_data - mult) << 1) )
+    mult = mult | ( np.power(2, max_pow) >> 1 )
 
   return mult
 
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def count_bits(numpy.ndarray[DTYPE_t, ndim=2] in_data):
+def count_bits(np.ndarray[DTYPE_t, ndim=2] in_data):
   """Count the number of active bits in in_data
   """
 
-  cdef numpy.ndarray[DTYPE_U8_t, ndim=1] bits = numpy.unpackbits(in_data.astype(DTYPE_U8))
-  return bits.reshape((bits.size/16, 2, 8)).sum(axis=2).astype(DTYPE)
+  cdef np.ndarray[DTYPE_U8_t, ndim=1] bits = np.unpackbits(in_data.astype(DTYPE_U8))
+  return bits.reshape((bits.size//16, 2, 8)).sum(axis=2).astype(DTYPE)
 
 
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def average_bits(numpy.ndarray[DTYPE_t, ndim=2] num_bits):
+def average_bits(np.ndarray[DTYPE_t, ndim=2] num_bits):
   """
     Get the average number of bits in an array
   """
-  return num_bits[numpy.where(num_bits > 0)].mean()
+  return num_bits[np.where(num_bits > 0)].mean()
 
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def root_mean_square(numpy.ndarray[DTYPE_t, ndim=2] original,
-                     numpy.ndarray[DTYPE_t, ndim=2] estimate):
+def root_mean_square(np.ndarray[DTYPE_t, ndim=2] original,
+                     np.ndarray[DTYPE_t, ndim=2] estimate):
   """
     Calculate the root of the mean of the squared difference
   """
-  cdef numpy.ndarray[DTYPE_FLOAT_t, ndim=2] orig = original*1.0
-  cdef numpy.ndarray[DTYPE_FLOAT_t, ndim=2] esti = estimate*1.0
+  cdef np.ndarray[DTYPE_FLOAT_t, ndim=2] orig = original*1.0
+  cdef np.ndarray[DTYPE_FLOAT_t, ndim=2] esti = estimate*1.0
 
-  return numpy.sqrt( ((orig - esti)**2).mean() )
+  return np.sqrt( ((orig - esti)**2).mean() )
 
 
 
@@ -566,8 +563,8 @@ def root_mean_square(numpy.ndarray[DTYPE_t, ndim=2] original,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def render_frame(numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                 numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
+def render_frame(np.ndarray[DTYPE_t, ndim=2] spikes,
+                 np.ndarray[DTYPE_t, ndim=2] curr_frame,
                  DTYPE_t width,
                  DTYPE_t height,
                  DTYPE_U8_t polarity):
@@ -583,33 +580,33 @@ def render_frame(numpy.ndarray[DTYPE_t, ndim=2] spikes,
                        in brightness
     :returns spikes_frame: Combined spikes/image information in a color image
   """
-  cdef numpy.ndarray[DTYPE_U8_t, ndim=3] spikes_frame = numpy.zeros([height, width, 3], dtype=DTYPE_U8)
-  cdef numpy.ndarray[Py_ssize_t, ndim=1] rows, cols
+  cdef np.ndarray[DTYPE_U8_t, ndim=3] spikes_frame = np.zeros([height, width, 3], dtype=DTYPE_U8)
+  cdef np.ndarray[Py_ssize_t, ndim=1] rows, cols
   spikes_frame[:, :, 0] = curr_frame
   spikes_frame[:, :, 1] = curr_frame
   spikes_frame[:, :, 2] = curr_frame
 
   if polarity == RECTIFIED_POLARITY:
-    rows, cols = numpy.where(spikes != 0)
+    rows, cols = np.where(spikes != 0)
     spikes_frame[rows, cols, :] = [0, 255, 0]
 
   if polarity == UP_POLARITY or polarity == MERGED_POLARITY:
-    rows, cols = numpy.where(spikes > 0)
+    rows, cols = np.where(spikes > 0)
     spikes_frame[rows, cols, :] = [0, 255, 0]
 
   if polarity == DOWN_POLARITY or polarity == MERGED_POLARITY:
-    rows, cols = numpy.where(spikes < 0)
+    rows, cols = np.where(spikes < 0)
     spikes_frame[rows, cols, :] = [0, 0, 255]
 
   return spikes_frame
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def render_comparison(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
-                      numpy.ndarray[DTYPE_t, ndim=2] ref_frame,
-                      numpy.ndarray[DTYPE_t, ndim=2] lap_curr,
-                      numpy.ndarray[DTYPE_t, ndim=2] lap_ref,
-                      numpy.ndarray[DTYPE_U8_t, ndim=3] spikes_frame,
+def render_comparison(np.ndarray[DTYPE_t, ndim=2] curr_frame,
+                      np.ndarray[DTYPE_t, ndim=2] ref_frame,
+                      np.ndarray[DTYPE_t, ndim=2] lap_curr,
+                      np.ndarray[DTYPE_t, ndim=2] lap_ref,
+                      np.ndarray[DTYPE_U8_t, ndim=3] spikes_frame,
                       DTYPE_t width, DTYPE_t height):
   """
     Compose a comparison of visual features
@@ -621,8 +618,8 @@ def render_comparison(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
     -----------------------------------------------
 
   """
-#~   cdef numpy.ndarray[DTYPE_U8_t, ndim=3] out = numpy.zeros([2*height, 4*width, 3], dtype=DTYPE_U8)
-  cdef numpy.ndarray[DTYPE_U8_t, ndim=3] out = numpy.zeros([height, 4*width, 3], dtype=DTYPE_U8)
+#~   cdef np.ndarray[DTYPE_U8_t, ndim=3] out = np.zeros([2*height, 4*width, 3], dtype=DTYPE_U8)
+  cdef np.ndarray[DTYPE_U8_t, ndim=3] out = np.zeros([height, 4*width, 3], dtype=DTYPE_U8)
 
   out[:height, 0:width, 0] = curr_frame
   out[:height, 0:width, 1] = curr_frame
@@ -630,12 +627,12 @@ def render_comparison(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
   out[:height, width:2*width, 0] = ref_frame
   out[:height, width:2*width, 1] = ref_frame
   out[:height, width:2*width, 2] = ref_frame
-#~   out[:, 2*width:3*width, 0] = (numpy.abs(curr_frame - ref_frame) > 0)*255
-#~   out[:, 2*width:3*width, 1] = (numpy.abs(curr_frame - ref_frame) > 0)*255
-#~   out[:, 2*width:3*width, 2] = (numpy.abs(curr_frame - ref_frame) > 0)*255
-  out[:height, 2*width:3*width, 0] = numpy.abs(curr_frame - ref_frame)
-  out[:height, 2*width:3*width, 1] = numpy.abs(curr_frame - ref_frame)
-  out[:height, 2*width:3*width, 2] = numpy.abs(curr_frame - ref_frame)
+#~   out[:, 2*width:3*width, 0] = (np.abs(curr_frame - ref_frame) > 0)*255
+#~   out[:, 2*width:3*width, 1] = (np.abs(curr_frame - ref_frame) > 0)*255
+#~   out[:, 2*width:3*width, 2] = (np.abs(curr_frame - ref_frame) > 0)*255
+  out[:height, 2*width:3*width, 0] = np.abs(curr_frame - ref_frame)
+  out[:height, 2*width:3*width, 1] = np.abs(curr_frame - ref_frame)
+  out[:height, 2*width:3*width, 2] = np.abs(curr_frame - ref_frame)
   out[:height, 3*width:, :] = spikes_frame
 
 #~   out[height:, 0:width, 0] = lap_curr
@@ -644,15 +641,15 @@ def render_comparison(numpy.ndarray[DTYPE_t, ndim=2] curr_frame,
 #~   out[height:, width:2*width, 0] = lap_ref
 #~   out[height:, width:2*width, 1] = lap_ref
 #~   out[height:, width:2*width, 2] = lap_ref
-#~   out[height:, 2*width:3*width, 0] = numpy.abs(lap_curr - lap_ref)
-#~   out[height:, 2*width:3*width, 1] = numpy.abs(lap_curr - lap_ref)
-#~   out[height:, 2*width:3*width, 2] = numpy.abs(lap_curr - lap_ref)
+#~   out[height:, 2*width:3*width, 0] = np.abs(lap_curr - lap_ref)
+#~   out[height:, 2*width:3*width, 1] = np.abs(lap_curr - lap_ref)
+#~   out[height:, 2*width:3*width, 2] = np.abs(lap_curr - lap_ref)
 
   return out
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def split_spikes(numpy.ndarray[DTYPE_t, ndim=2] spikes,
-                 numpy.ndarray[DTYPE_t, ndim=2] abs_diff,
+def split_spikes(np.ndarray[DTYPE_t, ndim=2] spikes,
+                 np.ndarray[DTYPE_t, ndim=2] abs_diff,
                  DTYPE_U8_t polarity):
   """
     Divide spikes into positive and negative, both refering to change in
@@ -667,45 +664,45 @@ def split_spikes(numpy.ndarray[DTYPE_t, ndim=2] spikes,
 
     output format is [[row0, col0, val0], ... [rowN, colN, valN]]
   """
-  cdef numpy.ndarray[DTYPE_IDX_t, ndim=1] neg_rows, neg_cols, \
+  cdef np.ndarray[DTYPE_IDX_t, ndim=1] neg_rows, neg_cols, \
                                          pos_rows, pos_cols
-  cdef numpy.ndarray[DTYPE_t, ndim=1]    neg_vals, pos_vals
+  cdef np.ndarray[DTYPE_t, ndim=1]    neg_vals, pos_vals
   cdef DTYPE_t global_max = 0
 
 
   if polarity == RECTIFIED_POLARITY:
     # print("RECTIFIED_POLARITY")
-    pos_rows, pos_cols = numpy.where(spikes != 0)
+    pos_rows, pos_cols = np.where(spikes != 0)
     pos_vals = abs_diff[pos_rows, pos_cols]
-    neg_rows = neg_cols = numpy.array([], dtype=DTYPE_IDX)
-    neg_vals = numpy.array([], dtype=DTYPE)
+    neg_rows = neg_cols = np.array([], dtype=DTYPE_IDX)
+    neg_vals = np.array([], dtype=DTYPE)
     if len(pos_vals) > 0:
       global_max = pos_vals.max()
 
   elif polarity == UP_POLARITY:
-    pos_rows, pos_cols = numpy.where(spikes > 0)
+    pos_rows, pos_cols = np.where(spikes > 0)
     pos_vals = abs_diff[pos_rows, pos_cols]
-    neg_rows = neg_cols = numpy.array([], dtype=DTYPE_IDX)
-    neg_vals = numpy.array([], dtype=DTYPE)
+    neg_rows = neg_cols = np.array([], dtype=DTYPE_IDX)
+    neg_vals = np.array([], dtype=DTYPE)
 
     if len(pos_vals) > 0:
       global_max = pos_vals.max()
 
 
   elif polarity == DOWN_POLARITY:
-    pos_rows, pos_cols = numpy.where(spikes < 0)
+    pos_rows, pos_cols = np.where(spikes < 0)
     pos_vals = abs_diff[pos_rows, pos_cols]
-    neg_rows = neg_cols = numpy.array([], dtype=DTYPE_IDX)
-    neg_vals = numpy.array([], dtype=DTYPE)
+    neg_rows = neg_cols = np.array([], dtype=DTYPE_IDX)
+    neg_vals = np.array([], dtype=DTYPE)
 
     if len(pos_vals) > 0:
       global_max = pos_vals.max()
 
   elif polarity == MERGED_POLARITY:
-    neg_rows, neg_cols = numpy.where(spikes < 0)
+    neg_rows, neg_cols = np.where(spikes < 0)
     neg_vals = abs_diff[neg_rows, neg_cols]
 
-    pos_rows, pos_cols = numpy.where(spikes > 0)
+    pos_rows, pos_cols = np.where(spikes > 0)
     pos_vals = abs_diff[pos_rows, pos_cols]
 
     if len(neg_vals) > 0 and len(pos_vals) > 0:
@@ -717,8 +714,8 @@ def split_spikes(numpy.ndarray[DTYPE_t, ndim=2] spikes,
 
 
   ####### ROWS, COLS, VALS
-  return numpy.array([neg_rows, neg_cols, neg_vals], dtype=DTYPE), \
-         numpy.array([pos_rows, pos_cols, pos_vals], dtype=DTYPE), \
+  return np.array([neg_rows, neg_cols, neg_vals], dtype=DTYPE), \
+         np.array([pos_rows, pos_cols, pos_vals], dtype=DTYPE), \
          global_max
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -738,9 +735,9 @@ cdef inline grab_spike_key(DTYPE_t row, DTYPE_t col,
   return spike_key
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-cdef numpy.ndarray[DTYPE_t, ndim=1] spike_to_xyp(DTYPE_t row, DTYPE_t col,
+cdef np.ndarray[DTYPE_t, ndim=1] spike_to_xyp(DTYPE_t row, DTYPE_t col,
                           DTYPE_U8_t is_pos_spike):
-  return numpy.array([col, row, is_pos_spike])
+  return np.array([col, row, is_pos_spike])
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -760,27 +757,31 @@ cdef DTYPE_t spike_to_key(DTYPE_t row, DTYPE_t col,
                            or negative
       :returns encoded row/col/pos_or_neg
 
-      The output format is: [up|down][row][col]
+      The output format is: [col][row][up|down]
     """
     
     cdef DTYPE_U16_t d = 0
 
     #up/down bit
-    if not is_pos_spike:
-        d = d | 1 << flag_shift
+    if is_pos_spike:
+#         d = d | 1 << flag_shift
+        d = d | 1
+
+    # col bits
+#     d = d | (col)# & data_mask)
+    d = d | (row << 1)# & data_mask)
 
     # row bits
-    d = d | (row & data_mask) <<  data_shift
-    # col bits
-    d = d | (col & data_mask)
+#     d = d | (row & data_mask) <<  data_shift
+    d = d | (col << (data_shift + 1))
 
     return d
 
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
-                          numpy.ndarray[DTYPE_t, ndim=2] neg_spikes,
+def make_spike_lists_rate(np.ndarray[DTYPE_t, ndim=2] pos_spikes,
+                          np.ndarray[DTYPE_t, ndim=2] neg_spikes,
                           DTYPE_t global_max,
                           DTYPE_t threshold,
                           DTYPE_U8_t flag_shift,
@@ -821,14 +822,14 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
 
     if pix_idx < len_pos:
       spike_key = grab_spike_key(pos_spikes[ROWS, pix_idx], \
-                                   pos_spikes[COLS, pix_idx], \
-                                   flag_shift, data_shift, data_mask,\
-                                   is_pos_spike = 1,
-                                   key_coding=key_coding)
-          
-          
-      val = pos_spikes[VALS, pix_idx]/threshold
-      spike_idx = min(max_spikes-1, val)
+                                 pos_spikes[COLS, pix_idx], \
+                                 flag_shift, data_shift, data_mask,\
+                                 is_pos_spike = 1,
+                                 key_coding=key_coding)
+
+      val = pos_spikes[VALS, pix_idx]//threshold
+      val = (max_spikes - 1) - val
+      spike_idx = max(0, val)
 
     else:
       neg_idx = pix_idx - len_pos
@@ -838,9 +839,10 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                  is_pos_spike = 0,
                                  key_coding=key_coding)
 
-      val = neg_spikes[VALS, neg_idx]/threshold
+      val = neg_spikes[VALS, neg_idx]//threshold
+      val = (max_spikes - 1) - val
 #~       print("neg rate spikes val, key", val, spike_key)
-      spike_idx = min(max_spikes-1, val)
+      spike_idx = max(0, val)
       
     for list_idx in range(spike_idx):
       list_of_lists[list_idx].append(spike_key)
@@ -852,8 +854,8 @@ def make_spike_lists_rate(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def make_spike_lists_time(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
-                          numpy.ndarray[DTYPE_t, ndim=2] neg_spikes,
+def make_spike_lists_time(np.ndarray[DTYPE_t, ndim=2] pos_spikes,
+                          np.ndarray[DTYPE_t, ndim=2] neg_spikes,
                           DTYPE_t global_max,
                           DTYPE_U8_t flag_shift,
                           DTYPE_U8_t data_shift,
@@ -905,7 +907,7 @@ def make_spike_lists_time(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                  flag_shift, data_shift, data_mask,\
                                  is_pos_spike = 1,
                                  key_coding=key_coding)
-      num_thresh = min(pos_spikes[VALS, pix_idx]/min_threshold  - 1, num_bins - 1)
+      num_thresh = min(pos_spikes[VALS, pix_idx]//min_threshold  - 1, num_bins - 1)
     else:
       neg_idx = pix_idx - len_pos
       spike_key = grab_spike_key(neg_spikes[ROWS, neg_idx], \
@@ -914,7 +916,7 @@ def make_spike_lists_time(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                  is_pos_spike = 0,
                                  key_coding=key_coding)
 
-      num_thresh = max( min(neg_spikes[VALS, neg_idx]/min_threshold - 1, 
+      num_thresh = max( min(neg_spikes[VALS, neg_idx]//min_threshold - 1, 
                             num_bins - 1),
                         0 )
 
@@ -928,8 +930,8 @@ def make_spike_lists_time(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def make_spike_lists_time_bin(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
-                              numpy.ndarray[DTYPE_t, ndim=2] neg_spikes,
+def make_spike_lists_time_bin(np.ndarray[DTYPE_t, ndim=2] pos_spikes,
+                              np.ndarray[DTYPE_t, ndim=2] neg_spikes,
                               DTYPE_t global_max,
                               DTYPE_U8_t flag_shift,
                               DTYPE_U8_t data_shift,
@@ -938,7 +940,7 @@ def make_spike_lists_time_bin(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                               DTYPE_t min_threshold,
                               DTYPE_t max_threshold,
                               DTYPE_t num_bins,
-                              numpy.ndarray[DTYPE_U8_t, ndim=1] log2_table,
+                              np.ndarray[DTYPE_U8_t, ndim=1] log2_table,
                               DTYPE_U8_t key_coding=KEY_SPINNAKER):
   """
     Convert spike (row, col, val, sign) lists into a list of Address
@@ -963,7 +965,7 @@ def make_spike_lists_time_bin(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                     len_pos = len(pos_spikes[0])
   cdef unsigned int max_pix = len_neg + len_pos
 
-  cdef numpy.ndarray[DTYPE_IDX_t, ndim=1] indices
+  cdef np.ndarray[DTYPE_IDX_t, ndim=1] indices
   cdef Py_ssize_t time_idx, pix_idx, neg_idx
   cdef DTYPE_t spike_key
   cdef list list_of_lists = list()
@@ -984,7 +986,7 @@ def make_spike_lists_time_bin(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
 
       byte_code = log2_table[ pos_spikes[VALS, pix_idx] ]
 
-      indices, = numpy.where( numpy.unpackbits(numpy.uint8(byte_code)) )
+      indices, = np.where( np.unpackbits(np.uint8(byte_code)) )
 
       for i in indices:
         list_of_lists[i].append(spike_key)
@@ -999,7 +1001,7 @@ def make_spike_lists_time_bin(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
 
       byte_code = log2_table[ neg_spikes[VALS, neg_idx] ]
 
-      indices, = numpy.where( numpy.unpackbits(numpy.uint8(byte_code)) )
+      indices, = np.where( np.unpackbits(np.uint8(byte_code)) )
 
       for i in indices:
         list_of_lists[i].append(spike_key)
@@ -1010,8 +1012,8 @@ def make_spike_lists_time_bin(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
-                                  numpy.ndarray[DTYPE_t, ndim=2] neg_spikes,
+def make_spike_lists_time_bin_thr(np.ndarray[DTYPE_t, ndim=2] pos_spikes,
+                                  np.ndarray[DTYPE_t, ndim=2] neg_spikes,
                                   DTYPE_t global_max,
                                   DTYPE_U8_t flag_shift,
                                   DTYPE_U8_t data_shift,
@@ -1020,7 +1022,7 @@ def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                   DTYPE_t min_threshold,
                                   DTYPE_t max_threshold,
                                   DTYPE_t num_bins,
-                                  numpy.ndarray[DTYPE_U8_t, ndim=1] log2_table,
+                                  np.ndarray[DTYPE_U8_t, ndim=1] log2_table,
                                   DTYPE_U8_t key_coding=KEY_SPINNAKER):
   """
     Convert spike (row, col, val, sign) lists into a list of Address
@@ -1045,7 +1047,7 @@ def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                     len_pos = len(pos_spikes[0])
   cdef unsigned int max_pix = len_neg + len_pos
 
-  cdef numpy.ndarray[DTYPE_IDX_t, ndim=1] indices
+  cdef np.ndarray[DTYPE_IDX_t, ndim=1] indices
   cdef Py_ssize_t time_idx, pix_idx, neg_idx
   cdef DTYPE_t spike_key
   cdef list list_of_lists = list()
@@ -1063,9 +1065,9 @@ def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                  is_pos_spike = 1,
                                  key_coding=key_coding)
 
-      byte_code = log2_table[ pos_spikes[VALS, pix_idx]/min_threshold ]
+      byte_code = log2_table[ pos_spikes[VALS, pix_idx]//min_threshold ]
 
-      indices, = numpy.where( numpy.unpackbits(numpy.uint8(byte_code)) )
+      indices, = np.where( np.unpackbits(np.uint8(byte_code)) )
 #~       print "byte_val (%s)"%byte_code
 #~       print indices
 
@@ -1082,9 +1084,9 @@ def make_spike_lists_time_bin_thr(numpy.ndarray[DTYPE_t, ndim=2] pos_spikes,
                                  is_pos_spike = 0,
                                  key_coding=key_coding)
 
-      byte_code = log2_table[ neg_spikes[VALS, neg_idx]/min_threshold ]
+      byte_code = log2_table[ neg_spikes[VALS, neg_idx]//min_threshold ]
 
-      indices, = numpy.where( numpy.unpackbits(numpy.uint8(byte_code)) )
+      indices, = np.where( np.unpackbits(np.uint8(byte_code)) )
 #~       print "byte_val (%s)"%byte_code
 #~       print indices
 
@@ -1104,7 +1106,7 @@ def generate_log2_table(max_active_bits, bit_resolution):
   """Create a look-up table for the possible values in the range (0, 2^bit_resolution)
     one table per active bits in the range (0, max_active_bits]
   """
-  cdef numpy.ndarray[DTYPE_U8_t, ndim=2] log2_table = numpy.zeros((max_active_bits, 2**bit_resolution), dtype=DTYPE_U8)
+  cdef np.ndarray[DTYPE_U8_t, ndim=2] log2_table = np.zeros((max_active_bits, 2**bit_resolution), dtype=DTYPE_U8)
   cdef int active_bits, value
 
   for active_bits in range(max_active_bits):
@@ -1119,13 +1121,13 @@ def generate_log2_table(max_active_bits, bit_resolution):
 #######################################################################################
 
 
-def mask_image(numpy.ndarray[DTYPE_t, ndim=2] original,
-               numpy.ndarray[DTYPE_FLOAT_t, ndim=2] mask):
+def mask_image(np.ndarray[DTYPE_t, ndim=2] original,
+               np.ndarray[DTYPE_FLOAT_t, ndim=2] mask):
     
     return DTYPE(original*mask)
 
 
-def traverse_image(numpy.ndarray[DTYPE_t, ndim=2] original,
+def traverse_image(np.ndarray[DTYPE_t, ndim=2] original,
                    DTYPE_t frame_number, DTYPE_FLOAT_t speed, DTYPE_t bg_gray):
   """
     Animate input image (original) at a certain rate (fps)
@@ -1136,7 +1138,7 @@ def traverse_image(numpy.ndarray[DTYPE_t, ndim=2] original,
     :param speed:        How many pixels per frame should the image move
     :returns moved:      Translated image
   """
-  cdef numpy.ndarray[DTYPE_t, ndim=2] moved = bg_gray*numpy.ones_like(original, dtype=DTYPE)
+  cdef np.ndarray[DTYPE_t, ndim=2] moved = bg_gray*np.ones_like(original, dtype=DTYPE)
   cdef int width = len(original[0])
   cdef int n = DTYPE(frame_number*speed)
 
@@ -1153,7 +1155,7 @@ def traverse_image(numpy.ndarray[DTYPE_t, ndim=2] original,
 
 
 
-def fade_image(numpy.ndarray[DTYPE_t, ndim=2] original,
+def fade_image(np.ndarray[DTYPE_t, ndim=2] original,
                DTYPE_t frame_number, DTYPE_t half_frame,
                DTYPE_t bg_gray):
   """
@@ -1165,7 +1167,7 @@ def fade_image(numpy.ndarray[DTYPE_t, ndim=2] original,
     :param half_frame:   Frame at half the image's on time
     :returns moved:      Translated image
   """
-  cdef numpy.ndarray[DTYPE_t, ndim=2] moved = bg_gray*numpy.ones_like(original, dtype=DTYPE)
+  cdef np.ndarray[DTYPE_t, ndim=2] moved = bg_gray*np.ones_like(original, dtype=DTYPE)
 
   cdef DTYPE_FLOAT_t alpha = 0.0
   if frame_number < half_frame - 1:
@@ -1179,11 +1181,11 @@ def fade_image(numpy.ndarray[DTYPE_t, ndim=2] original,
 
   return moved
 
-cdef move_image(numpy.ndarray[DTYPE_t, ndim=2] original,
+cdef move_image(np.ndarray[DTYPE_t, ndim=2] original,
                 DTYPE_t delta_x,
                 DTYPE_t delta_y,
                 DTYPE_t bg_gray):
-  cdef numpy.ndarray[DTYPE_t, ndim=2] moved = bg_gray*numpy.ones_like(original, dtype=DTYPE)
+  cdef np.ndarray[DTYPE_t, ndim=2] moved = bg_gray*np.ones_like(original, dtype=DTYPE)
   cdef DTYPE_t new_x0, new_x1, old_x0, old_x1
   cdef DTYPE_t new_y0, new_y1, old_y0, old_y1
   cdef DTYPE_t width  = len(original[0])
@@ -1213,7 +1215,7 @@ cdef move_image(numpy.ndarray[DTYPE_t, ndim=2] original,
   return moved
 
 
-def usaccade_image(numpy.ndarray[DTYPE_t, ndim=2] original,
+def usaccade_image(np.ndarray[DTYPE_t, ndim=2] original,
                    DTYPE_t frame_number,
                    DTYPE_t frames_per_usaccade,
                    DTYPE_t max_delta,
@@ -1233,17 +1235,17 @@ def usaccade_image(numpy.ndarray[DTYPE_t, ndim=2] original,
   if frame_number%frames_per_usaccade != 0:
     return move_image(original, center_x, center_y, bg_gray), center_x, center_y
 
-  numpy.random.seed(seed=numpy.uint32(time.time()*10000000000))
-  center_x += numpy.random.randint(-max_delta, max_delta+1)
-  center_y += numpy.random.randint(-max_delta, max_delta+1)
+  np.random.seed(seed=np.uint32(time.time()*10000000000))
+  center_x += np.random.randint(-max_delta, max_delta+1)
+  center_y += np.random.randint(-max_delta, max_delta+1)
 
   return move_image(original, center_x, center_y, bg_gray), center_x, center_y
 
 
 
-def attention_image(numpy.ndarray[DTYPE_t, ndim=2] original,
-                    numpy.ndarray[DTYPE_t, ndim=2] previous,
-                    numpy.ndarray[DTYPE_t, ndim=2] reference,
+def attention_image(np.ndarray[DTYPE_t, ndim=2] original,
+                    np.ndarray[DTYPE_t, ndim=2] previous,
+                    np.ndarray[DTYPE_t, ndim=2] reference,
                     DTYPE_t frame_number,
                     DTYPE_t frames_per_usaccade,
                     DTYPE_t frame_saccade,
@@ -1269,28 +1271,28 @@ def attention_image(numpy.ndarray[DTYPE_t, ndim=2] original,
 
 
   # simulate saccade
-  cdef numpy.ndarray[DTYPE_t, ndim=2] moved = bg_gray*numpy.ones_like(original, dtype=DTYPE)
-  cdef int new_w = len(original[0])/2
-  cdef numpy.ndarray[DTYPE_t, ndim=2] tiny_prev = cv2.resize(previous, (new_w, new_w), \
+  cdef np.ndarray[DTYPE_t, ndim=2] moved = bg_gray*np.ones_like(original, dtype=DTYPE)
+  cdef int new_w = len(original[0])//2
+  cdef np.ndarray[DTYPE_t, ndim=2] tiny_prev = cv2.resize(previous, (new_w, new_w), \
                                                              interpolation=CV_INTER_AREA).astype(DTYPE)
 
-  cdef numpy.ndarray[DTYPE_t, ndim=2] tiny_ref  = cv2.resize(reference, (new_w, new_w), \
+  cdef np.ndarray[DTYPE_t, ndim=2] tiny_ref  = cv2.resize(reference, (new_w, new_w), \
                                                              interpolation=CV_INTER_AREA).astype(DTYPE)
-  cdef numpy.ndarray[DTYPE_t, ndim=2] diff = numpy.abs(tiny_prev - tiny_ref).astype(DTYPE)
+  cdef np.ndarray[DTYPE_t, ndim=2] diff = np.abs(tiny_prev - tiny_ref).astype(DTYPE)
 
-  cdef numpy.ndarray[DTYPE_IDX_t, ndim=1] top_n = numpy.argsort(diff.reshape(new_w*new_w))\
+  cdef np.ndarray[DTYPE_IDX_t, ndim=1] top_n = np.argsort(diff.reshape(new_w*new_w))\
                                                        .astype(DTYPE_IDX)[-5:]
 
-  cdef int max_idx = top_n[numpy.random.randint(5)]
-  cdef int row = (max_idx/new_w)*2
+  cdef int max_idx = top_n[np.random.randint(5)]
+  cdef int row = (max_idx//new_w)*2
   cdef int col = (max_idx%new_w)*2
 
   center_x = new_w - col
   center_y = new_w - row
   if center_x > new_w or center_x < -new_w or\
      center_y > new_w or center_y < -new_w:
-       center_x = 0
-       center_y = 0
+      center_x = 0
+      center_y = 0
 
 
   return move_image(original, center_x, center_y, bg_gray), center_x, center_y

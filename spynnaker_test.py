@@ -1,8 +1,6 @@
-import numpy
 import pylab
 import cv2
 import spynnaker.pyNN as sim
-import time
 
 from pydvs.external_dvs_emulator_device_wrapper import DvsEmulatorDevice
 from pydvs.external_dvs_emulator_device import ExternalDvsEmulatorDevice
