@@ -26,4 +26,6 @@ Files:
 
 - `spynnaker_test.py` - Demonstration script for sPyNNaker compatible frontend.
 - `stand_alone*.py` - Demonstration scripts for the Cython backend, they come in single- and multi-threaded versions.
-- `virtual_cam_test.py` - Demonstration script for the VirtualCam class, it requires images in a directory ("./mnist" by default)
+- `virtual_cam_test.py` - Demonstration script for the VirtualCam class, it requires images in a directory ("./mnist" by default)  
+
+The multithreaded versions require either Python 3.4 and above or Windows  

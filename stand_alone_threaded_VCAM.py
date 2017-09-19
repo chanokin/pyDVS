@@ -10,6 +10,7 @@ import cv2
 
 import pydvs.generate_spikes as gs
 from pydvs.virtual_cam import VirtualCam
+import sys
 
 
 MODE_128 = "128"
@@ -242,6 +243,14 @@ def main():
     video_dev.release()
   
 if __name__ == '__main__':
-  multiprocessing.set_start_method('spawn')
-  main()
+  if sys.platform.startswith('win'):
+    # This allows the cv2 window to update.
+    main()
+  elif sys.version_info[0] >= 3 and sys.version_info[1] >= 4:
+    # This allows the cv2 window to update.
+    multiprocessing.set_start_method('spawn')
+    main()
+    
+  else:
+    print ("This demo must be run in Python 3.4 and higher or Windows")
 

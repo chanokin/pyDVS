@@ -10,7 +10,7 @@ from pydvs.virtual_cam import VirtualCam
 import pydvs.generate_spikes as gs
 
 import os
-import glob
+import glob2
 
 KEY_SPINNAKER = 0
 
@@ -55,7 +55,7 @@ def wait_ms(prev_time_ms, wait_time_ms):
         
 def get_filenames(img_dir):
     imgs = []
-    image_list = glob.glob(os.path.join(img_dir, "**/*.png"), recursive=True)
+    image_list = glob2.glob(os.path.join(img_dir, "**/*.png"))
     image_list.sort()
     for img in image_list:
         if os.path.isfile(img):
@@ -189,7 +189,7 @@ dir_name = "%s/%s"%(dir_name, setname)
 if not os.path.exists(dir_name):
     os.makedirs(dir_name)
 
-filelist = glob.glob("%s/*.txt"%(dir_name))
+filelist = glob2.glob("%s/*.txt"%(dir_name))
 for f in filelist:
     os.remove(f)
 

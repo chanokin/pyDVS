@@ -46,15 +46,15 @@ def grab_first(dev, res):
   new_width = int( float(new_height*width)/float(height) )
   col_from = (new_width - res)//2
   col_to   = col_from + res
-  img = cv2.resize(cv2.convertColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
-               (new_width, new_height), interpolation=cv2.CV_INTER_NN)[:, col_from:col_to]
+  img = cv2.resize(cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
+               (new_width, new_height))[:, col_from:col_to]
 
   return img, new_width, new_height, col_from, col_to
 
 def grab_frame(dev, width, height, col_from, col_to):
   _, raw = dev.read()
-  img = cv2.resize(cv2.convertColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
-               (width, height), interpolation=cv2.CV_INTER_NN)[:, col_from:col_to]
+  img = cv2.resize(cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
+               (width, height))[:, col_from:col_to]
 
   return img
 
@@ -116,12 +116,14 @@ video_dev = cv2.VideoCapture(0) # webcam
 
 #ps3 eyetoy can do 125fps
 try:
-  video_dev.set(cv2.CV_CAP_PROP_FPS, 125)
+  video_dev.set(cv2.CAP_PROP_FPS, 125)
 except:
   pass
   
-fps = video_dev.get(cv2.CV_CAP_PROP_FPS)
-max_time_ms = int(1000./fps)
+fps = video_dev.get(cv2.CAP_PROP_FPS)
+if fps == 0.0:
+  fps = 125.0
+max_time_ms = int(1000./float(fps))
 
 
 #---------------------- main loop -------------------------------------#

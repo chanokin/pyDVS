@@ -1,7 +1,7 @@
 from __future__ import print_function
 import os
 import inspect
-import glob
+import glob2
 from threading import Thread, Lock
 from time import time as get_time
 import copy
@@ -443,7 +443,7 @@ class VirtualCam():
       elif os.path.isdir(images): # or a directory?
         img_idx = 0
         for extension in self.IMAGE_TYPES:
-          image_list = glob.glob(os.path.join(images, "*.%s"%extension))
+          image_list = glob2.glob(os.path.join(images, "*.%s"%extension))
           if image_list is None:
             continue
           image_list.sort()

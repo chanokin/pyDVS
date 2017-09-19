@@ -9,6 +9,7 @@ from numpy import int16, uint8, log2
 import cv2
 
 import pydvs.generate_spikes as gs
+import sys
 
 MODE_128 = "128"
 MODE_64  = "64"
@@ -48,15 +49,15 @@ def grab_first(dev, res):
   new_width = int( float(new_height*width)/float(height) )
   col_from = (new_width - res)//2
   col_to   = col_from + res
-  img = cv2.resize(cv2.convertColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
-               (new_width, new_height), interpolation=cv2.INTER_NEAREST)[:, col_from:col_to]
+  img = cv2.resize(cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
+               (new_width, new_height))[:, col_from:col_to]
 
   return img, new_width, new_height, col_from, col_to
 
 def grab_frame(dev, width, height, col_from, col_to):
   _, raw = dev.read()
-  img = cv2.resize(cv2.convertColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
-               (width, height), interpolation=cv2.INTER_NEAREST)[:, col_from:col_to]
+  img = cv2.resize(cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY).astype(int16),
+               (width, height))[:, col_from:col_to]
 
   return img
 
@@ -265,5 +266,14 @@ def main():
   
 
 if __name__ == '__main__':
-  multiprocessing.set_start_method('spawn')
-  main()
+  if sys.platform.startswith('win'):
+    # This allows the cv2 window to update.
+    main()
+  elif sys.version_info[0] >= 3 and sys.version_info[1] >= 4:
+    # This allows the cv2 window to update.
+    multiprocessing.set_start_method('spawn')
+    main()
+    
+  else:
+    print ("This demo must be run in Python 3.4 and higher or Windows")
+
