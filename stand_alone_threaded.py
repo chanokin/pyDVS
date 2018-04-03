@@ -10,6 +10,7 @@ import cv2
 
 import pydvs.generate_spikes as gs
 import sys
+import argparse
 
 MODE_128 = "128"
 MODE_64  = "64"
@@ -201,11 +202,16 @@ inh_coords = gs.generate_inh_coords(width, height, inh_width)
 
 
 def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--video_id", default=0, required=False, type=int)
+  args = parser.parse_args()
+  video_dev_id = args.video_id
+
 
   # -------------------------------------------------------------------- #
   # camera/frequency related                                             #
   
-  video_dev = cv2.VideoCapture(0) # webcam
+  video_dev = cv2.VideoCapture(video_dev_id) # webcam
   #~ video_dev = cv2.VideoCapture('./120fps HFR Sample.mp4') # webcam
   
   #ps3 eyetoy can do 125fps
