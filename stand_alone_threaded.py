@@ -167,7 +167,15 @@ def emitting_thread(spike_queue, running):
 #----------------------------------------------------------------------#
 # global variables                                                     #
 
-mode = MODE_128
+parser = argparse.ArgumentParser()
+parser.add_argument("--video_id", default='0', required=False, type=str)
+parser.add_argument("--res", default=MODE_128, required=False, type=int)
+args = parser.parse_args()
+video_dev_id = args.video_id
+if len(video_dev_id) < 4:
+  # Assume that urls have at least 4 characters
+  video_dev_id = int(video_dev_id)
+mode = args.res
 cam_res = int(mode)
 #cam_res = 256 <- can be done, but spynnaker doesn't suppor such resolution
 width = cam_res # square output
@@ -202,10 +210,6 @@ inh_coords = gs.generate_inh_coords(width, height, inh_width)
 
 
 def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--video_id", default=0, required=False, type=int)
-  args = parser.parse_args()
-  video_dev_id = args.video_id
 
 
   # -------------------------------------------------------------------- #
