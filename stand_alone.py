@@ -152,6 +152,7 @@ while(True):
   # get an image from video source
   if is_first_pass:
     curr[:], scale_width, scale_height, col_from, col_to = grab_first(video_dev, cam_res)
+    is_first_pass = False
   else:
     curr[:] = grab_frame(video_dev, scale_width,  scale_height, col_from, col_to)
   
