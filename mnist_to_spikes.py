@@ -248,7 +248,7 @@ else:
           if img_on_frame == 0:
               curr = padd_img
           else:
-              curr, cx, cy = gs.usaccade_image(padd_img, frames_per_image, 
+              curr, cx, cy = gs.usaccade_image(padd_img, img_on_frame, 
                                                frames_per_microsaccade,
                                                max_dist, cx, cy, bg_gray)
   
