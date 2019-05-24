@@ -22,11 +22,16 @@ int main(int argc, const char* argv[]){
     dvs.setAdapt(rate, up, down);
     cout << "Relax rate = " << dvs.getRelaxRate() << endl;
 
-    cv::Mat frame(dvs.getHeight(), dvs.getWidth(), 3);
+    cv::Mat frame(dvs.getHeight(), dvs.getWidth(), CV_32FC3);
     int count = 0;
     while(ok){
         ok = dvs.update();
         if(ok){
+            for(size_t row = 0; row < dvs.getHeight(); row++){
+                for(size_t col = 0; col < dvs.getWidth(); col++){
+                    
+                }
+            }
             // cv::imshow("Frame", dvs.getInput()*(1.0f/255.0f));
             cv::imshow("Frame", dvs.getDifference()*(1.0f/255.0f));
             char c=(char)cv::waitKey(100);
