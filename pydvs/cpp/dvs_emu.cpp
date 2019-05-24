@@ -1,5 +1,11 @@
 #include "dvs_emu.hpp"
 
+struct Operator{
+    void operator()(float &out, const int* position, const cv::Mat in){
+        out = in.at<float>(position);
+    }
+};
+
 PyDVS::PyDVS(const size_t w, const size_t h, const size_t fps){
     _w = w;
     _h = h;
@@ -8,14 +14,13 @@ PyDVS::PyDVS(const size_t w, const size_t h, const size_t fps){
 
 PyDVS::~PyDVS(){
     if(_open){
-        _cam.release();
+        _cap.release();
     }
 }
-
-bool PyDVS::init(const int cam_id, const float relaxRate, 
+bool PyDVS::init(const int cam_id, const float thr, const float relaxRate, 
         const float adaptUp, const float adaptDown){
-    _cam = VideoCapture(cam_id);
-    _open = _cam.isOpened();
+    _cap = cv::VideoCapture(cam_id);
+    _open = _cap.isOpened();
     if(!_open){
         cerr << "Error. Cannot open video feed!" << endl;
         return false;
@@ -31,25 +36,49 @@ bool PyDVS::init(const int cam_id, const float relaxRate,
         success &= _set_fps();
     }
 
-    _init_matrices();
-    _set_adapt(relaxRate, adaptUp, adaptDown);
+    _initMatrices(thr);
+    setAdapt(relaxRate, adaptUp, adaptDown);
     return success;
 }
 
-bool PyDVS::init(const String& filename, const float relaxRate, 
+bool PyDVS::init(const string& filename, const float thr, const float relaxRate, 
         const float adaptUp, const float adaptDown){
-    _cam = VideoCapture(filename);
-    _open = _cam.isOpened();
+    _cap = cv::VideoCapture(filename);
+    _open = _cap.isOpened();
     if(!_open){
-        cerr << "Error. Cannot open video feed!" << endl;
+        cerr << "Init. Cannot open video feed!" << endl;
         return false;
     }
 
     _is_vid = true;
     _get_size();
     _get_fps();
-    _init_matrices();
-    _set_adapt(relaxRate, adaptUp, adaptDown);
+    // set output format as 32-bit floating point with a single channel
+    _cap.set(CV_CAP_PROP_FORMAT, CV_32FC1);
+
+    _initMatrices(thr);
+    setAdapt(relaxRate, adaptUp, adaptDown);
+
+    return true;
+}
+
+bool PyDVS::init(const char* filename, const float thr, const float relaxRate, 
+        const float adaptUp, const float adaptDown){
+    _cap = cv::VideoCapture(filename);
+    _open = _cap.isOpened();
+    if(!_open){
+        cerr << "Init. Cannot open video feed!" << endl;
+        return false;
+    }
+
+    _is_vid = true;
+    _get_size();
+    _get_fps();
+    // set output format as 32-bit floating point with a single channel
+    _cap.set(CV_CAP_PROP_FORMAT, CV_32FC1);
+
+    _initMatrices(thr);
+    setAdapt(relaxRate, adaptUp, adaptDown);
 
     return true;
 }
@@ -57,45 +86,67 @@ bool PyDVS::init(const String& filename, const float relaxRate,
 
 void PyDVS::_get_size(){
     if(_open){
-        _w = _cam.get(cv::CV_CAP_PROP_FRAME_WIDTH);
-        _h = _cam.get(cv::CV_CAP_PROP_FRAME_HEIGHT);
+        _w = _cap.get(CV_CAP_PROP_FRAME_WIDTH);
+        _h = _cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+
     }
 }
 
 bool PyDVS::_set_size(){
  
     if(_open){
-        size_t w = _cam.get(cv::CV_CAP_PROP_FRAME_WIDTH);
-        size_t h = _cam.get(cv::CV_CAP_PROP_FRAME_HEIGHT);
+        size_t w = _cap.get(CV_CAP_PROP_FRAME_WIDTH);
+        size_t h = _cap.get(CV_CAP_PROP_FRAME_HEIGHT);
         bool success = true;
-        success &= _cam.set(cv::CV_CAP_PROP_FRAME_WIDTH, _w);
-        success &= _cam.set(cv::CV_CAP_PROP_FRAME_HEIGHT, _h);
+        success &= _cap.set(CV_CAP_PROP_FRAME_WIDTH, _w);
+        success &= _cap.set(CV_CAP_PROP_FRAME_HEIGHT, _h);
 
         if (!success){
-            _cam.set(cv::CV_CAP_PROP_FRAME_WIDTH, w);
-            _cam.set(cv::CV_CAP_PROP_FRAME_HEIGHT, h);
+            _cap.set(CV_CAP_PROP_FRAME_WIDTH, w);
+            _cap.set(CV_CAP_PROP_FRAME_HEIGHT, h);
             _w = w; 
             _h = h;
         }
         return success;
     }
+    return false;
 }
 
 void PyDVS::_get_fps(){
     if(_open){
-        _fps = _cam.get(cv::CV_CAP_PROP_FPS);
+        _fps = _cap.get(CV_CAP_PROP_FPS);
     }
 }
 
 bool PyDVS::_set_fps(){
     if(_open){
-        size_t fps = _cam.get(cv::CV_CAP_PROP_FPS);
+        size_t fps = _cap.get(CV_CAP_PROP_FPS);
         bool success = true;
-        success &= _cam.set(cv::CV_CAP_PROP_FPS, _fps);
+        success &= _cap.set(CV_CAP_PROP_FPS, _fps);
         if(!success){
-            _cam.set(cv::CV_CAP_PROP_FPS, fps);
+            _cap.set(CV_CAP_PROP_FPS, fps);
             _fps = fps;
         }
         return success;
     }
+    return false;
+}
+
+bool PyDVS::update(){
+    _cap >> _frame;
+    if (_frame.empty()){
+        return false;
+    }
+    cv::cvtColor(_frame, _gray, CV_BGR2GRAY);
+    _gray.convertTo(_in, CV_32F);
+    cv::parallel_for_(cv::Range(0, _gray.rows), _dvsOp);
+    
+    // _diff.forEach<float>(Operator());
+    // subtract(_in, _ref, _diff);
+    // _absDiff = cv::abs(_diff);
+    // cv::threshold(_absDiff, _absDiff, _thr);
+    // // _events = _diff * _absDiff;
+    // _ref = (_relaxRate * _ref) + _events;
+    return true;
+
 }
