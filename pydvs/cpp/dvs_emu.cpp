@@ -1,11 +1,5 @@
 #include "dvs_emu.hpp"
 
-struct Operator{
-    void operator()(float &out, const int* position, const cv::Mat in){
-        out = in.at<float>(position);
-    }
-};
-
 PyDVS::PyDVS(const size_t w, const size_t h, const size_t fps){
     _w = w;
     _h = h;
@@ -35,9 +29,8 @@ bool PyDVS::init(const int cam_id, const float thr, const float relaxRate,
         success &= _set_size();
         success &= _set_fps();
     }
-
+    setAdapt(relaxRate, adaptUp, adaptDown, thr);
     _initMatrices(thr);
-    setAdapt(relaxRate, adaptUp, adaptDown);
     return success;
 }
 
@@ -55,9 +48,8 @@ bool PyDVS::init(const string& filename, const float thr, const float relaxRate,
     _get_fps();
     // set output format as 32-bit floating point with a single channel
     _cap.set(CV_CAP_PROP_FORMAT, CV_32FC1);
-
+    setAdapt(relaxRate, adaptUp, adaptDown, thr);
     _initMatrices(thr);
-    setAdapt(relaxRate, adaptUp, adaptDown);
 
     return true;
 }
@@ -76,9 +68,8 @@ bool PyDVS::init(const char* filename, const float thr, const float relaxRate,
     _get_fps();
     // set output format as 32-bit floating point with a single channel
     _cap.set(CV_CAP_PROP_FORMAT, CV_32FC1);
-
+    setAdapt(relaxRate, adaptUp, adaptDown, thr);
     _initMatrices(thr);
-    setAdapt(relaxRate, adaptUp, adaptDown);
 
     return true;
 }

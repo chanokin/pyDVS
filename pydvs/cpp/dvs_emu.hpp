@@ -20,7 +20,7 @@ class PyDVS{
 
 public:
     PyDVS():_relaxRate(1.0f), _adaptUp(1.0f), _adaptDown(1.0f),
-        _w(0), _h(0), _fps(0), _open(false){}
+        _baseThresh(12.0f), _w(0), _h(0), _fps(0), _open(false){}
     PyDVS(const size_t w, const size_t h, const size_t fps=0);
     ~PyDVS();
     bool init(const int cam_id=0, const float thr=12.75f,
@@ -54,10 +54,11 @@ public:
 
     bool update();
     inline void setAdapt(const float relaxRate, const float adaptUp, 
-                            const float adaptDown){
+                        const float adaptDown, const float threshold){
         _relaxRate = relaxRate;
         _adaptUp = adaptUp;
         _adaptDown = adaptDown;
+        _baseThresh = threshold;
     }
 
 private:
@@ -74,6 +75,7 @@ private:
     float _relaxRate;
     float _adaptUp;
     float _adaptDown;
+    float _baseThresh;
 
     size_t _w, _h, _fps;
     bool _open;
@@ -84,7 +86,7 @@ private:
     void _get_fps();
     bool _set_size();
     bool _set_fps();
-    inline void _initMatrices(const float thr_init){
+    inline void _initMatrices(const float thr_init=-1.0f){
         // CV_32F 32-bit floating point numbers
         _gray  = cv::Mat::zeros(_h, _w, CV_8UC1);
         _in  = cv::Mat::zeros(_h, _w, CV_32F);
@@ -95,8 +97,12 @@ private:
         // try random init, might help, or not hurt
         // cv::RNG rng(1);
         // rng.fill(_diff, cv::RNG::UNIFORM, 64.0f, 192.0f, true);
-        _thr = thr_init * cv::Mat::ones(_h, _w, CV_32F);
-        _dvsOp.init(_in, _diff, _ref, _thr, _events,
+        cout << _relaxRate << "," << _adaptUp << "," << _adaptDown << endl;
+        if(thr_init > _baseThresh){
+            _baseThresh = thr_init;
+        }
+        _thr = _baseThresh * cv::Mat::ones(_h, _w, CV_32F);
+        _dvsOp.init(&_in, &_diff, &_ref, &_thr, &_events,
                     _relaxRate, _adaptUp, _adaptDown);
 
     }

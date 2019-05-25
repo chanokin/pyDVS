@@ -11,14 +11,16 @@ void DVSOperator::operator()(const cv::Range& range) const{
 
         for (int32_t col(0); col < src->cols; ++col) {
             (*it_diff) = (*it_src) - (*it_ref);
-            float test = (float)((*it_diff < *it_thr) || (*it_diff > *it_thr));
-            (*it_diff) = (*it_diff) * test;
+            bool test = (((*it_diff) < -(*it_thr)) || ((*it_diff) > (*it_thr)));
+            (*it_diff) = (*it_diff) * ((float)test);
             (*it_ref) = (relax * (*it_ref)) + (*it_diff);
-            if(test > 0.0f){
-                (*it_thr) *= up;
+            if(test){
+                (*it_thr) = (*it_thr) * up;
             }else{
-                (*it_thr) *= down;
+                (*it_thr) = (*it_thr) * down;
             }
+
+
             
             //advance pointers
             ++it_src; 
