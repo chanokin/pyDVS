@@ -36,9 +36,10 @@ int main(int argc, const char* argv[]){
     cout << "Subminor version : " << CV_SUBMINOR_VERSION << endl;    
     
     PyDVS dvs;
+    // compute this as exp(-1/frames)?
     float up = 1.5f;
     float down = 0.99f;
-    float rate = 0.99f;
+    float rate = 0.999f;
     float thr = 10.0f;
 //*
     bool ok = dvs.init("./SampleVideo_360x240_30mb.mp4", thr, rate, up, down);
@@ -62,6 +63,14 @@ int main(int argc, const char* argv[]){
     size_t h = dvs.getHeight();
     cv::Mat frame(h, w, CV_32FC3);
     cv::Mat full(h, w*4, CV_32FC3);
+    cv::Mat fullGray = full(cv::Rect(0,0,w,h));
+    cv::Mat fullRef = full(cv::Rect(w, 0,w,h));
+    cv::Mat fullDiff = full(cv::Rect(2*w,0,w,h));
+    cv::Mat fullOut = full(cv::Rect(3*w,0,w,h));
+    cv::Mat tmp(h, w, CV_32FC3);
+    // matSrc.copyTo(matRoi);
+    // matRoi = matDst(Rect(matSrc.cols,0,matSrc.cols,matSrc.rows));
+    // matGray.copyTo(matRoi);
 
     int count = 0;
     while(ok){
@@ -69,11 +78,25 @@ int main(int argc, const char* argv[]){
         if(ok){
 
             diffToBGR(frame, dvs.getInput(), dvs.getDifference(), 0.0);
+            cvtColor((dvs.getInput()*(1.0f/255.0f)),
+                     tmp, cv::COLOR_GRAY2BGR);
+            tmp.copyTo(fullGray);
+
+            cvtColor((dvs.getReference()*(1.0f/255.0f)),
+                     tmp, cv::COLOR_GRAY2BGR);
+            tmp.copyTo(fullRef);
+
+            cvtColor((dvs.getDifference()*(1.0f/255.0f)),
+                     tmp, cv::COLOR_GRAY2BGR);
+            tmp.copyTo(fullDiff);
+
+            frame.copyTo(fullOut);
+
             // cv::imshow("Frame", dvs.getInput()*(1.0f/255.0f));
             // cv::imshow("Frame", dvs.getReference()*(1.0f/255.0f));
             // cv::imshow("Frame", dvs.getDifference()*(1.0f/255.0f));
-            cv::imshow("Frame", frame);
-            // cv::imshow("Frame", full);
+            // cv::imshow("Frame", frame);
+            cv::imshow("Frame", full);
             char c=(char)cv::waitKey(1);
             if(c==27 || c == 'q' || c == 'Q'){
                 break;
