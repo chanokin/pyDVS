@@ -1,7 +1,7 @@
 ## A Cython-based Dynamic Vision Sensor (DVS) emulator. It can be used within a Python environment as demonstrated in the various test files.
 This project is under the GPLv3 License (https://www.gnu.org/copyleft/gpl.html)
 
-## I added a C++ version of the basic algorithm using OpenCV.
+#### I added a C++ version of the basic algorithm using OpenCV.
 
 A DVS is a camera-like sensor which emits per-pixel asynchronous Address-Event Representation (AER) packets. These are originated due to an intensity level change has reached a certain threshold. 
 
