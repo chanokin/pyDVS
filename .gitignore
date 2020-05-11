@@ -6,3 +6,7 @@ reports
 /mnist_spikes/
 /build/
 .vscode/
+venv3/
+pydvs/*.c
+pydvs/*.so
+.idea/
