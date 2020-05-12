@@ -15,6 +15,7 @@ from pydvs.math_utils cimport *
 from pydvs.math_utils_np import *
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef thresholded_difference(np.ndarray[DTYPE_t, ndim=2] curr_frame,
                             np.ndarray[DTYPE_t, ndim=2] ref_frame,
                             np.ndarray[DTYPE_t, ndim=2] threshold):
@@ -45,6 +46,7 @@ cdef thresholded_difference(np.ndarray[DTYPE_t, ndim=2] curr_frame,
 
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef update_threshold(np.ndarray[DTYPE_t, ndim=2] threshold,
                       np.ndarray[DTYPE_t, ndim=2] spikes,
                       DTYPE_t mult_up, DTYPE_t mult_down, DTYPE_t base_level):
@@ -67,6 +69,7 @@ cdef update_threshold(np.ndarray[DTYPE_t, ndim=2] threshold,
     return threshold
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef update_reference(np.ndarray[DTYPE_t, ndim=2] reference,
                       np.ndarray[DTYPE_t, ndim=2] spikes,
                       np.ndarray[DTYPE_t, ndim=2] threshold,
@@ -94,6 +97,7 @@ cdef update_reference(np.ndarray[DTYPE_t, ndim=2] reference,
     return reference
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef get_output_spikes(np.ndarray[DTYPE_t, ndim=2] abs_on, 
                        np.ndarray[DTYPE_t, ndim=2] abs_off,
                        np.ndarray[DTYPE_t, ndim=2] spikes_on, 
@@ -114,6 +118,7 @@ cdef get_output_spikes(np.ndarray[DTYPE_t, ndim=2] abs_on,
     return on_out, off_out
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef local_inhibition(np.ndarray[DTYPE_t, ndim=2] spikes,
                      np.ndarray[DTYPE_t, ndim=2] abs_diff,
                      np.ndarray[DTYPE_t, ndim=2] inh_coords,

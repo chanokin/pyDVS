@@ -12,6 +12,7 @@ from pydvs.cdefines cimport *
 from pydvs.pdefines import *
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
 cpdef render_frame(np.ndarray[DTYPE_t, ndim=2] spikes,
                  np.ndarray[DTYPE_t, ndim=2] curr_frame,
                  DTYPE_t width,
@@ -51,6 +52,7 @@ cpdef render_frame(np.ndarray[DTYPE_t, ndim=2] spikes,
 
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
 cpdef render_comparison(np.ndarray[DTYPE_t, ndim=2] curr_frame,
                       np.ndarray[DTYPE_t, ndim=2] ref_frame,
                       np.ndarray[DTYPE_t, ndim=2] lap_curr,
