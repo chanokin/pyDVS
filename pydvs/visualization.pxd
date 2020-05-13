@@ -12,14 +12,13 @@ from pydvs.cdefines cimport *
 from pydvs.pdefines import *
 
 cpdef render_frame(np.ndarray[DTYPE_t, ndim=2] spikes,
-                 np.ndarray[DTYPE_t, ndim=2] curr_frame,
-                 DTYPE_t width,
-                 DTYPE_t height,
-                 DTYPE_U8_t polarity)
+                   np.ndarray[DTYPE_t, ndim=2] curr_frame,
+                   DTYPE_IDX_t width,
+                   DTYPE_IDX_t height)
 
 cpdef render_comparison(np.ndarray[DTYPE_t, ndim=2] curr_frame,
-                      np.ndarray[DTYPE_t, ndim=2] ref_frame,
-                      np.ndarray[DTYPE_t, ndim=2] lap_curr,
-                      np.ndarray[DTYPE_t, ndim=2] lap_ref,
-                      np.ndarray[DTYPE_U8_t, ndim=3] spikes_frame,
-                      DTYPE_IDX_t width, DTYPE_IDX_t height)
+                        np.ndarray[DTYPE_t, ndim=2] ref_frame,
+                        np.ndarray[DTYPE_t, ndim=2] lap_curr,
+                        np.ndarray[DTYPE_t, ndim=2] lap_ref,
+                        np.ndarray[DTYPE_U8_t, ndim=3] spikes_frame,
+                        DTYPE_IDX_t width, DTYPE_IDX_t height)

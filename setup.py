@@ -4,8 +4,7 @@ Call python setup.py build_ext --inplace
 @author: fred
 '''
 import numpy
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, find_packages, Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 import glob
@@ -30,9 +29,17 @@ ext_modules = [
 
 
 setup(
-    name='NVS Emulator',
+    name='PyDVS: NVS Emulator',
+    version='0.2.0',
+    packages=find_packages(),
     ext_modules=cythonize(ext_modules, 
                           include_path=[numpy.get_include()],
                           language='c++',
-                          language_level='3')
+                          language_level='3'),
+    url='https://github.com/chanokin/pyDVS',
+    author='Garibaldi Pineda Garcia and Fred Rotbart',
+    description="Cython-based Neuromorphic Vision Sensor emulator",
+    install_requires=["cython", "numpy", "cv2",],
+    zip_safe=False,  
+    
 )

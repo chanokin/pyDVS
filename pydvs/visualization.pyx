@@ -15,9 +15,8 @@ from pydvs.pdefines import *
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 cpdef render_frame(np.ndarray[DTYPE_t, ndim=2] spikes,
                  np.ndarray[DTYPE_t, ndim=2] curr_frame,
-                 DTYPE_t width,
-                 DTYPE_t height,
-                 DTYPE_U8_t polarity):
+                 DTYPE_IDX_t width,
+                 DTYPE_IDX_t height):
     """
       Overlaps the generated spikes onto the latest image from the video
       source. Red means a negative change in brightness, Green a positive one.
@@ -26,27 +25,21 @@ cpdef render_frame(np.ndarray[DTYPE_t, ndim=2] spikes,
       :param curr_frame: Latest image from the video source
       :param width:      Image width
       :param height:     Image height
-      :param polarity:   Wether to report positive, negative or both changes
-                         in brightness
       :returns spikes_frame: Combined spikes/image information in a color image
     """
-    cdef np.ndarray[DTYPE_U8_t, ndim= 3] spikes_frame = np.zeros([height, width, 3], dtype=DTYPE_U8)
-    cdef np.ndarray[Py_ssize_t, ndim= 1] rows, cols
+    cdef np.ndarray[DTYPE_U8_t, ndim= 3] spikes_frame = \
+                                np.zeros([height, width, 3], dtype=DTYPE_U8)
+    cdef np.ndarray[DTYPE_IDX_t, ndim= 1] rows, cols
+
     spikes_frame[:, :, 0] = curr_frame
     spikes_frame[:, :, 1] = curr_frame
     spikes_frame[:, :, 2] = curr_frame
 
-    if polarity == RECTIFIED_POLARITY:
-        rows, cols = np.where(spikes != 0)
-        spikes_frame[rows, cols, :] = [0, 200, 0]
+    rows, cols = np.where(spikes > 0)
+    spikes_frame[rows, cols, :] = [0, 200, 0]
 
-    if polarity == UP_POLARITY or polarity == MERGED_POLARITY:
-        rows, cols = np.where(spikes > 0)
-        spikes_frame[rows, cols, :] = [0, 200, 0]
-
-    if polarity == DOWN_POLARITY or polarity == MERGED_POLARITY:
-        rows, cols = np.where(spikes < 0)
-        spikes_frame[rows, cols, :] = [0, 0, 200]
+    rows, cols = np.where(spikes < 0)
+    spikes_frame[rows, cols, :] = [0, 0, 200]
 
     return spikes_frame
 

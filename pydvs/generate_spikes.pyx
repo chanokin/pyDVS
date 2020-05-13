@@ -17,8 +17,8 @@ from pydvs.math_utils_np import *
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef thresholded_difference(np.ndarray[DTYPE_t, ndim=2] curr_frame,
-                            np.ndarray[DTYPE_t, ndim=2] ref_frame,
-                            np.ndarray[DTYPE_t, ndim=2] threshold):
+                            DTYPE_t[:, :] ref_frame,
+                            DTYPE_t[:, :] threshold):
     """
     :param curr_frame: Latest image captured by the camera
     :param ref_frame:  Saves value when the pixel was marked as "spiking"
@@ -47,8 +47,8 @@ cdef thresholded_difference(np.ndarray[DTYPE_t, ndim=2] curr_frame,
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
-cdef update_threshold(np.ndarray[DTYPE_t, ndim=2] threshold,
-                      np.ndarray[DTYPE_t, ndim=2] spikes,
+cdef update_threshold(DTYPE_t[:, :] threshold,
+                      DTYPE_t[:, :] spikes,
                       DTYPE_t mult_up, DTYPE_t mult_down, DTYPE_t base_level):
     """
     Should be called after update_reference!
@@ -58,21 +58,23 @@ cdef update_threshold(np.ndarray[DTYPE_t, ndim=2] threshold,
     :param mult_down: how fast should the thresholds return to base_level, 0 < val < 1
     :param base_level: base level for thresholds
     """
-    if mult_up <= 1.0 or mult_down >= 1.0:
+    if mult_up <= DTYPE(1) or mult_down >= DTYPE(1):
         return threshold
     
+    cdef np.ndarray[DTYPE_t, ndim=2] tarr = np.asarray(threshold)
     cdef np.ndarray[DTYPE_U8_t, ndim=2] mask
-    mask = (spikes == 0) # didn't spike
-    threshold[~mask] *= mult_up # inv didn't spike
-    threshold[mask] = base_level + (threshold[mask] - base_level) * mult_down
+    mask = ( spikes == DTYPE(0) )# didn't spike
+    tarr[~mask] *= mult_up # inv didn't spike
+    tarr[mask] = base_level + (tarr[mask] - base_level) * mult_down
 
+    threshold = tarr
     return threshold
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
-cdef update_reference(np.ndarray[DTYPE_t, ndim=2] reference,
-                      np.ndarray[DTYPE_t, ndim=2] spikes,
-                      np.ndarray[DTYPE_t, ndim=2] threshold,
+cdef update_reference(DTYPE_t[:, :] reference,
+                      DTYPE_t[:, :] spikes,
+                      DTYPE_t[:, :] threshold,
                       DTYPE_t mult_down, DTYPE_t base_level, 
                       DTYPE_t min_level, DTYPE_t max_level):
     """
@@ -85,41 +87,46 @@ cdef update_reference(np.ndarray[DTYPE_t, ndim=2] reference,
     :param min_level: lower bound of the value range for references (min pixel value)
     :param max_level: upper bound of the value range for references (max pixel value)
     """
+    cdef np.ndarray[DTYPE_t, ndim=2] sarr = np.asarray(spikes)
+    cdef np.ndarray[DTYPE_t, ndim=2] tarr = np.asarray(threshold)
+    cdef np.ndarray[DTYPE_t, ndim=2] rarr = np.asarray(reference)
 
-    reference += (spikes * threshold)
-    if mult_down >= 1.0:
+    rarr += (sarr * tarr)
+    if mult_down >= DTYPE(1):
+        reference = rarr
         return reference
 
     cdef np.ndarray[DTYPE_U8_t, ndim=2] mask
-    mask = (spikes == 0)
-    reference[mask] = np.clip(base_level + (reference[mask] - base_level) * mult_down, 
-                            min_level, max_level)
+    mask = ( sarr == DTYPE(0) )
+    rarr[mask] = np.clip(base_level + (rarr[mask] - base_level) * mult_down, 
+                         min_level, max_level)
+    reference = rarr
     return reference
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef get_output_spikes(np.ndarray[DTYPE_t, ndim=2] abs_on, 
                        np.ndarray[DTYPE_t, ndim=2] abs_off,
-                       np.ndarray[DTYPE_t, ndim=2] spikes_on, 
-                       np.ndarray[DTYPE_t, ndim=2] spikes_off):
+                       DTYPE_t[:, :] spikes_on, 
+                       DTYPE_t[:, :] spikes_off):
     """
     """
-    cdef np.ndarray[DTYPE_t, ndim=2] off_mask
-    cdef np.ndarray[DTYPE_t, ndim=2] on_mask
+    cdef np.ndarray[DTYPE_U8_t, ndim=2] off_mask
+    cdef np.ndarray[DTYPE_U8_t, ndim=2] on_mask
     cdef np.ndarray[DTYPE_t, ndim=2] on_out
     cdef np.ndarray[DTYPE_t, ndim=2] off_out
 
-    off_mask = spikes_off < 0
-    on_mask = spikes_on > 0
+    off_mask = spikes_off < DTYPE(0)
+    on_mask = spikes_on > DTYPE(0)
     
-    on_out = spikes_on * ((on_mask * abs_on) > abs_off)
-    off_out = -spikes_off * ((off_mask * abs_off) > abs_on)
+    on_out = np.asarray(spikes_on) * ((on_mask * abs_on) > abs_off)
+    off_out = -np.asarray(spikes_off) * ((off_mask * abs_off) > abs_on)
 
     return on_out, off_out
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
-cdef local_inhibition(np.ndarray[DTYPE_t, ndim=2] spikes,
+cdef local_inhibition(DTYPE_t[:, :] spikes,
                      np.ndarray[DTYPE_t, ndim=2] abs_diff,
                      np.ndarray[DTYPE_t, ndim=2] inh_coords,
                      DTYPE_IDX_t width,
