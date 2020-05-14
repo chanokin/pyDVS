@@ -42,7 +42,7 @@ cdef thresholded_difference(np.ndarray[DTYPE_t, ndim=2] curr_frame,
 
     spikes[:] = np.round( (diff * spikes) / threshold )
 
-    return diff, abs_diff, spikes
+    return abs_diff, spikes
 
 
 @cython.boundscheck(False)  # turn off bounds-checking for entire function

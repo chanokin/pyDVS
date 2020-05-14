@@ -50,8 +50,6 @@ spikes_off = curr.copy()
 
 max_time_ms = int(1000./float(fps))
 
-
-
 nvs_config = {
     'reference': {
         'dec': DTYPE( np.exp(-1.0 / 30.0) ), # frames
@@ -72,7 +70,7 @@ nvs = NVSEmu(shape, scale=False, config=nvs_config)
 
 WINDOW_NAME = 'spikes'
 cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
-cv2.startWindowThread()
+# cv2.startWindowThread()
 
 is_first_pass = True
 start_time = time.time()
@@ -89,10 +87,11 @@ while(True):
     curr[:] = DTYPE( cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY) )
     
     nvs.update(curr)
-    spikes_on[:], spikes_off[:] = nvs.spikes()
 
+    spikes_on[:], spikes_off[:] = nvs.spikes()
     raw[:] = render_frame(spikes_on - spikes_off, curr, width, height)
     
+    # cv2.imshow(WINDOW_NAME, curr.astype('uint8'))
     cv2.imshow(WINDOW_NAME, raw)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):

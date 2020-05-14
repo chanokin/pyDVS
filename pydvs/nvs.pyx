@@ -22,9 +22,9 @@ _default_config = {
         'dec': DTYPE( np.exp(-1.0 / 40.0) ), # frames
     },
     'threshold':{
-        'dec': DTYPE( np.exp(-1.0 / 5.0) ), # frames
-        'increment': DTYPE( 1.3 ), # mult
-        'base': DTYPE( 0.05 * 255.0 ), # v
+        'dec': DTYPE( np.exp(-1.0 / 50.0) ), # frames
+        'increment': DTYPE( 1.8 ), # mult
+        'base': DTYPE( 0.10 * 255.0 ), # v
     },
     'range':{
         'minimum': DTYPE( 0.0 ), # v
@@ -34,7 +34,6 @@ _default_config = {
 
 
 cdef class NVSEmu(object):
-    cdef dict _config
     cdef bint _scale
     cdef DTYPE_IDX_t _width, _height
     cdef DTYPE_t _ref_dec
@@ -47,7 +46,6 @@ cdef class NVSEmu(object):
 
     def __init__(self, tuple shape, bint scale, dict config=_default_config):
         self._height, self._width = shape
-        self._config = config
         self._config_parameters(config)
         self._init_buffers(shape)
         self._scale = scale
@@ -93,8 +91,11 @@ cdef class NVSEmu(object):
         return vmin, vmax
 
     cpdef update(self, np.ndarray[DTYPE_t, ndim=2] input_image):
-        cdef np.ndarray[DTYPE_t, ndim=2] scl
-        cdef np.ndarray[DTYPE_t, ndim=2] diff, abs_diff_on, abs_diff_off
+        cdef np.ndarray[DTYPE_t, ndim=2] scl, abs_diff_on, abs_diff_off
+
+        scl = np.zeros((self._height, self._width), dtype=DTYPE)
+        abs_diff_on = np.zeros((self._height, self._width), dtype=DTYPE)
+        abs_diff_off = np.zeros((self._height, self._width), dtype=DTYPE)
 
         if self._scale:
             scl = cv2.resize(
@@ -102,21 +103,24 @@ cdef class NVSEmu(object):
         else:
             scl = input_image
 
-        diff, abs_diff_on, self._spk_on = \
+        abs_diff_on[:], self._spk_on = \
             gen.thresholded_difference(scl, self._ref_on, self._thr_on)
-        diff, abs_diff_off, self._spk_off = \
-            gen.thresholded_difference(scl, self._ref_off, self._thr_off)
         
         self._ref_on = gen.update_reference(
                         self._ref_on, self._spk_on, self._thr_on, 
                         self._ref_dec, self._vmin, self._vmin, self._vmax)
-        self._ref_off = gen.update_reference(
-                            self._ref_off, self._spk_off, self._thr_off, 
-                            self._ref_dec, self._vmax, self._vmin, self._vmax)
 
         self._thr_on = gen.update_threshold(
                         self._thr_on, self._spk_on,
                         self._thr_inc, self._thr_dec, self._thr0)
+
+        abs_diff_off[:], self._spk_off = \
+            gen.thresholded_difference(scl, self._ref_off, self._thr_off)
+
+        self._ref_off = gen.update_reference(
+                            self._ref_off, self._spk_off, self._thr_off, 
+                            self._ref_dec, self._vmax, self._vmin, self._vmax)
+
         self._thr_off = gen.update_threshold(
                         self._thr_off, self._spk_off,
                         self._thr_inc, self._thr_dec, self._thr0)
@@ -124,4 +128,5 @@ cdef class NVSEmu(object):
         self._spk_out_on, self._spk_out_off = \
             gen.get_output_spikes(
                 abs_diff_on, abs_diff_off, self._spk_on, self._spk_off)
+
 
