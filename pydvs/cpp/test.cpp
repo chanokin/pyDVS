@@ -1,12 +1,12 @@
-#include "dvs_emu.hpp"
-#include <opencv2/highgui/highgui.hpp>
+#include "nvs_emu.hpp"
+#include <opencv2/opencv.hpp>
 #define B 0
 #define G 1
 #define R 2
 
 void diffToBGR(cv::Mat& bgr, const cv::Mat& gray, const cv::Mat& diff, const float thr){
-    for(size_t row = 0; row < gray.rows; row++){
-        for(size_t col = 0; col < gray.cols; col++){
+    for(int row = 0; row < gray.rows; row++){
+        for(int col = 0; col < gray.cols; col++){
             cv::Vec3f color(0.0f, 0.0f, 0.0f);
             float val = diff.at<float>(row, col);
             if(val > thr){
@@ -36,15 +36,19 @@ int main(int argc, const char* argv[]){
     cout << "Subminor version : " << CV_SUBMINOR_VERSION << endl;    
     
     PyDVS dvs;
+
     // compute this as exp(-1/frames)?
     float up = 1.5f;
     float down = 0.99f;
     float rate = 0.999f;
     float thr = 10.0f;
-//*
+    float prob = 0.8f;
+/*
     bool ok = dvs.init("./SampleVideo_360x240_30mb.mp4", thr, rate, up, down);
 /*/
-    bool ok = dvs.init(0, thr, rate, up, down);
+    dvs.setWidth(640);
+    dvs.setHeight(480);
+    bool ok = dvs.init(0, thr, rate, up, down, prob);
 //*///
 
     if(!ok){
@@ -52,7 +56,7 @@ int main(int argc, const char* argv[]){
         return 1;
     }
 
-    dvs.setAdapt(rate, up, down, thr);
+    dvs.setAdapt(rate, up, down, thr, prob);
     cout << "Relax rate = " << dvs.getRelaxRate() << endl;
     cout << "Adapt up = " << dvs.getAdaptUp() << endl;
     cout << "Adapt down = " << dvs.getAdaptDown() << endl;
