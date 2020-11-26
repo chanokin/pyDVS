@@ -97,7 +97,7 @@ int main(int argc, const char* argv[]){
             // cv::imshow("Frame", dvs.getDifference()*(1.0f/255.0f));
             // cv::imshow("Frame", frame);
             cv::imshow("Frame", full);
-            char c=(char)cv::waitKey(1);
+            char c=(char)cv::waitKey(33);
             if(c==27 || c == 'q' || c == 'Q'){
                 break;
             }
