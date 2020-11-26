@@ -6,3 +6,6 @@ reports
 /mnist_spikes/
 /build/
 .vscode/
+**/__pycache__/
+**/test
+venv3/
