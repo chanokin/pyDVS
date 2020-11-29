@@ -97,22 +97,46 @@ def nvs_bi_noisy_leaky_adaptive(
         reference_leak_probability: np.float,
         reference_off: np.ndarray, thresholds_off: np.ndarray, target_off: np.float):
     active = np.zeros_like(frame)
-    diff_off = np.zeros_like(frame)
+    spikes_off = np.zeros_like(frame)
     active_off = np.zeros_like(frame)
-    leak_active = np.zeros_like(frame)
+    leak_active = np.ones_like(frame)
 
     active[:] = thresholded_difference(frame, reference, thresholds, spikes)
-    active_off[:] = thresholded_difference(frame, reference, thresholds, spikes)
+    active_off[:] = thresholded_difference(
+                            frame, reference_off, thresholds_off, spikes_off)
     # thresholds as leaky integrators
     thresholds[:] = (
-            threshold_base + (thresholds - threshold_base) * threshold_leak +
-            (thresholds - threshold_base) * threshold_mult_incr * active
+        threshold_base + (thresholds - threshold_base) * threshold_leak +
+        (thresholds - threshold_base) * threshold_mult_incr * active
     )
 
     # reference is also a leaky integrator
-    leak_active[:] = (np.random.uniform(0., 1., size=frame.shape) <=
-                      reference_leak_probability) * reference_leak
-    leak_active[leak_active == 0] = 1.0
+    leak_active += (np.random.uniform(0., 1., size=frame.shape) <=
+                    reference_leak_probability) * (reference_leak - 1)
+    leak_active[:] = 1.0
     reference[:] = (
             reference * leak_active + spikes
     )
+
+    thresholds_off[:] = (
+        threshold_base + (thresholds_off - threshold_base) * threshold_leak +
+        (thresholds_off - threshold_base) * threshold_mult_incr * active_off
+    )
+
+    leak_active[:] = 1.0
+    leak_active += (np.random.uniform(0., 1., size=frame.shape) <=
+                    reference_leak_probability) * (reference_leak - 1)
+    leak_active[:] = 1.0
+    reference_off[:] = (
+            target_off + (reference - target_off) * leak_active + spikes_off
+    )
+
+    # think: what's faster?
+    for row in range(frame.shape[0]):
+        for col in range(frame.shape[1]):
+            if (-spikes_off[row, col]) > spikes[row, col]:
+                spikes[row, col] = spikes_off[row, col]
+
+    # spikes_off *= spikes_off < 0
+    # spikes *= spikes > 0
+    # spikes += spikes_off * (np.abs(spikes_off) > spikes)
