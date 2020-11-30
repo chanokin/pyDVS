@@ -1,4 +1,4 @@
-from numba import jit, float32
+from numba import jit, float32, uint8
 import numpy as np
 
 
@@ -6,7 +6,7 @@ import numpy as np
 def thresholded_difference(
         frame: np.ndarray, reference: np.ndarray, thresholds: np.ndarray,
         spikes: np.ndarray):
-    active = np.zeros_like(frame)
+    active = np.zeros_like(frame, dtype=uint8)
 
     spikes[:] = frame - reference
     active[:] = (np.abs(spikes) >= thresholds)
@@ -21,7 +21,7 @@ def thresholded_difference(
 @jit(nopython=True)
 def nvs_0(frame: np.ndarray, reference: np.ndarray, thresholds: np.ndarray,
           spikes: np.ndarray):
-    active = np.zeros_like(frame)
+    active = np.zeros_like(frame, dtype=uint8)
 
     active[:] = thresholded_difference(frame, reference, thresholds, spikes)
     reference[:] += spikes
@@ -30,7 +30,7 @@ def nvs_0(frame: np.ndarray, reference: np.ndarray, thresholds: np.ndarray,
 @jit(nopython=True)
 def nvs_leaky(frame: np.ndarray, reference: np.ndarray, thresholds: np.ndarray,
               spikes: np.ndarray, reference_leak: np.float):
-    active = np.zeros_like(frame)
+    active = np.zeros_like(frame, dtype=uint8)
 
     active[:] = thresholded_difference(frame, reference, thresholds, spikes)
 
@@ -44,7 +44,7 @@ def nvs_leaky_adaptive(frame: np.ndarray, reference: np.ndarray,
                        reference_leak: np.float,
                        threshold_base: np.float,
                        threshold_mult_incr: np.float, threshold_leak: np.float):
-    active = np.zeros_like(frame)
+    active = np.zeros_like(frame, dtype=uint8)
 
     active[:] = thresholded_difference(frame, reference, thresholds, spikes)
 
@@ -61,15 +61,15 @@ def nvs_leaky_adaptive(frame: np.ndarray, reference: np.ndarray,
 
 
 
-# @jit(nopython=True)
+@jit(nopython=True)
 def nvs_noisy_leaky_adaptive(frame: np.ndarray, reference: np.ndarray,
                              thresholds: np.ndarray, spikes: np.ndarray,
                              reference_leak: np.float,
                              threshold_base: np.float,
                              threshold_mult_incr: np.float, threshold_leak: np.float,
                              reference_leak_probability: np.float):
-    active = np.zeros_like(frame)
-    leak_active = np.ones_like(frame)
+    active = np.zeros_like(frame, dtype=uint8)
+    leak_active = np.ones_like(frame, dtype=float32)
 
     active[:] = thresholded_difference(frame, reference, thresholds, spikes)
 
@@ -96,10 +96,10 @@ def nvs_bi_noisy_leaky_adaptive(
         threshold_mult_incr: np.float, threshold_leak: np.float,
         reference_leak_probability: np.float,
         reference_off: np.ndarray, thresholds_off: np.ndarray, target_off: np.float):
-    active = np.zeros_like(frame)
-    spikes_off = np.zeros_like(frame)
-    active_off = np.zeros_like(frame)
-    leak_active = np.ones_like(frame)
+    active = np.zeros_like(frame, dtype=uint8)
+    spikes_off = np.zeros_like(frame, dtype=float32)
+    active_off = np.zeros_like(frame, dtype=float32)
+    leak_active = np.ones_like(frame, dtype=float32)
 
     active[:] = thresholded_difference(frame, reference, thresholds, spikes)
     active_off[:] = thresholded_difference(
@@ -113,7 +113,6 @@ def nvs_bi_noisy_leaky_adaptive(
     # reference is also a leaky integrator
     leak_active += (np.random.uniform(0., 1., size=frame.shape) <=
                     reference_leak_probability) * (reference_leak - 1)
-    leak_active[:] = 1.0
     reference[:] = (
             reference * leak_active + spikes
     )
@@ -126,16 +125,22 @@ def nvs_bi_noisy_leaky_adaptive(
     leak_active[:] = 1.0
     leak_active += (np.random.uniform(0., 1., size=frame.shape) <=
                     reference_leak_probability) * (reference_leak - 1)
-    leak_active[:] = 1.0
     reference_off[:] = (
             target_off + (reference - target_off) * leak_active + spikes_off
     )
 
     # think: what's faster?
-    for row in range(frame.shape[0]):
-        for col in range(frame.shape[1]):
-            if (-spikes_off[row, col]) > spikes[row, col]:
-                spikes[row, col] = spikes_off[row, col]
+    # for row in range(frame.shape[0]):
+    #     for col in range(frame.shape[1]):
+    #         if spikes[row, col] < 0:
+    #             spikes[row, col] = 0
+    #
+    #         if spikes_off[row, col] > 0:
+    #             spikes_off[row, col] = 0
+    #
+    #         if (-spikes_off[row, col]) > spikes[row, col]:
+    #             spikes[row, col] = spikes_off[row, col]
+
 
     # spikes_off *= spikes_off < 0
     # spikes *= spikes > 0
