@@ -30,7 +30,7 @@ ctypedef np.uint8_t DTYPE_U8_t
 DTYPE_U16 = np.uint16
 ctypedef np.uint16_t DTYPE_U16_t
 
-DTYPE_FLOAT = np.float
+DTYPE_FLOAT = float
 ctypedef np.float_t DTYPE_FLOAT_t
 
 DEF UP_POLARITY    = 0
