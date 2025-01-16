@@ -14,10 +14,16 @@ Requirements:
 - Numpy
 - OpenCV (with Python bindings)
 
-Before using, compile the Cython modules by running
+If using as an application, before using, compile the Cython modules by running
     
 `python setup.py build_ext --inplace`  
   
+in the folder where pyDVS is installed.
+
+Otherwise, it can be simply installed as a library by running
+
+`pip install .`
+
 in the folder where pyDVS is installed.
 
 Files:

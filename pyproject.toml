@@ -1,0 +1,19 @@
+[project]
+name = "pydvs"
+version = "0.1.0"
+description = "A Cython-based Dynamic Vision Sensor (DVS) emulator"
+readme = "README.md"
+requires-python = ">=3"
+dependencies = [
+    "cython",
+    "numpy",
+    "opencv-python",
+]
+
+[build-system]
+requires = ["setuptools", "cython", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = []
+
