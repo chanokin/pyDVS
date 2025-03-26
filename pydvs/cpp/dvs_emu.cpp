@@ -47,7 +47,7 @@ bool PyDVS::init(const string& filename, const float thr, const float relaxRate,
     _get_size();
     _get_fps();
     // set output format as 32-bit floating point with a single channel
-    _cap.set(CV_CAP_PROP_FORMAT, CV_32FC1);
+    _cap.set(cv::CAP_PROP_FORMAT, CV_32FC1);
     setAdapt(relaxRate, adaptUp, adaptDown, thr);
     _initMatrices(thr);
 
@@ -67,7 +67,7 @@ bool PyDVS::init(const char* filename, const float thr, const float relaxRate,
     _get_size();
     _get_fps();
     // set output format as 32-bit floating point with a single channel
-    _cap.set(CV_CAP_PROP_FORMAT, CV_32FC1);
+    _cap.set(cv::CAP_PROP_FORMAT, CV_32FC1);
     setAdapt(relaxRate, adaptUp, adaptDown, thr);
     _initMatrices(thr);
 
@@ -77,8 +77,8 @@ bool PyDVS::init(const char* filename, const float thr, const float relaxRate,
 
 void PyDVS::_get_size(){
     if(_open){
-        _w = _cap.get(CV_CAP_PROP_FRAME_WIDTH);
-        _h = _cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+        _w = _cap.get(cv::CAP_PROP_FRAME_WIDTH);
+        _h = _cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
     }
 }
@@ -86,15 +86,15 @@ void PyDVS::_get_size(){
 bool PyDVS::_set_size(){
  
     if(_open){
-        size_t w = _cap.get(CV_CAP_PROP_FRAME_WIDTH);
-        size_t h = _cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+        size_t w = _cap.get(cv::CAP_PROP_FRAME_WIDTH);
+        size_t h = _cap.get(cv::CAP_PROP_FRAME_HEIGHT);
         bool success = true;
-        success &= _cap.set(CV_CAP_PROP_FRAME_WIDTH, _w);
-        success &= _cap.set(CV_CAP_PROP_FRAME_HEIGHT, _h);
+        success &= _cap.set(cv::CAP_PROP_FRAME_WIDTH, _w);
+        success &= _cap.set(cv::CAP_PROP_FRAME_HEIGHT, _h);
 
         if (!success){
-            _cap.set(CV_CAP_PROP_FRAME_WIDTH, w);
-            _cap.set(CV_CAP_PROP_FRAME_HEIGHT, h);
+            _cap.set(cv::CAP_PROP_FRAME_WIDTH, w);
+            _cap.set(cv::CAP_PROP_FRAME_HEIGHT, h);
             _w = w; 
             _h = h;
         }
@@ -105,17 +105,17 @@ bool PyDVS::_set_size(){
 
 void PyDVS::_get_fps(){
     if(_open){
-        _fps = _cap.get(CV_CAP_PROP_FPS);
+        _fps = _cap.get(cv::CAP_PROP_FPS);
     }
 }
 
 bool PyDVS::_set_fps(){
     if(_open){
-        size_t fps = _cap.get(CV_CAP_PROP_FPS);
+        size_t fps = _cap.get(cv::CAP_PROP_FPS);
         bool success = true;
-        success &= _cap.set(CV_CAP_PROP_FPS, _fps);
+        success &= _cap.set(cv::CAP_PROP_FPS, _fps);
         if(!success){
-            _cap.set(CV_CAP_PROP_FPS, fps);
+            _cap.set(cv::CAP_PROP_FPS, fps);
             _fps = fps;
         }
         return success;
@@ -128,7 +128,7 @@ bool PyDVS::update(){
     if (_frame.empty()){
         return false;
     }
-    cv::cvtColor(_frame, _gray, CV_BGR2GRAY);
+    cv::cvtColor(_frame, _gray, cv::COLOR_BGR2GRAY);
     _gray.convertTo(_in, CV_32F);
     cv::parallel_for_(cv::Range(0, _gray.rows), _dvsOp);
     
